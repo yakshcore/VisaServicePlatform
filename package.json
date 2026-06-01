@@ -1,0 +1,19 @@
+{
+  "name": "visa-platform",
+  "private": true,
+  "workspaces": [
+    "backend-api",
+    "user-portal",
+    "admin-portal",
+    "shared"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=backend-api",
+    "dev:user": "npm run dev --workspace=user-portal",
+    "dev:admin": "npm run dev --workspace=admin-portal",
+    "build:backend": "npm run build --workspace=backend-api",
+    "build:user": "npm run build --workspace=user-portal",
+    "build:admin": "npm run build --workspace=admin-portal",
+    "seed": "npm run seed --workspace=backend-api"
+  }
+}

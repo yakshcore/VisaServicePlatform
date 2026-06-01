@@ -1,0 +1,34 @@
+import { Router } from 'express';
+import { adminProtect } from '../middleware/adminAuth.middleware';
+import { upload } from '../middleware/upload.middleware';
+import * as countries from '../controllers/admin/countries.controller';
+import * as visaTypes from '../controllers/admin/visaTypes.controller';
+import * as apps from '../controllers/admin/applications.controller';
+
+const router = Router();
+router.use(adminProtect);
+
+// Dashboard
+router.get('/dashboard', apps.getDashboardStats);
+
+// Countries
+router.route('/countries').get(countries.getCountries).post(countries.createCountry);
+router.route('/countries/:id').put(countries.updateCountry).delete(countries.deleteCountry);
+
+// Visa Types
+router.route('/visa-types').get(visaTypes.getVisaTypes).post(visaTypes.createVisaType);
+router.route('/visa-types/:id').get(visaTypes.getVisaType).put(visaTypes.updateVisaType).delete(visaTypes.deleteVisaType);
+
+// Applications
+router.get('/applications', apps.getApplications);
+router.get('/applications/:id', apps.getApplication);
+router.put('/applications/:id/status', apps.updateStatus);
+router.put('/applications/:id/document-review', apps.reviewDocument);
+router.put('/applications/:id/approve-documents', apps.approveAllDocuments);
+router.post('/applications/:id/visa-file', upload.single('file'), apps.uploadVisaFile);
+
+// Users
+router.get('/users', apps.getUsers);
+router.get('/users/:userId/applications', apps.getUserApplications);
+
+export default router;

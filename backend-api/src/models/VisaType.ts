@@ -1,0 +1,64 @@
+import mongoose, { Document, Schema } from 'mongoose';
+
+export type FieldType = 'text' | 'number' | 'email' | 'date' | 'select' | 'radio' | 'textarea' | 'file';
+
+export interface IFormField {
+  _id?: mongoose.Types.ObjectId;
+  label: string;
+  fieldName: string;
+  type: FieldType;
+  required: boolean;
+  options: string[];
+  placeholder: string;
+  order: number;
+}
+
+export interface IDocumentRequirement {
+  _id?: mongoose.Types.ObjectId;
+  name: string;
+  description: string;
+  required: boolean;
+}
+
+export interface IVisaType extends Document {
+  country: mongoose.Types.ObjectId;
+  name: string;
+  description: string;
+  price: number;
+  processingDays: number;
+  formFields: IFormField[];
+  documentRequirements: IDocumentRequirement[];
+  isActive: boolean;
+}
+
+const FormFieldSchema = new Schema<IFormField>({
+  label: { type: String, required: true },
+  fieldName: { type: String, required: true },
+  type: { type: String, required: true },
+  required: { type: Boolean, default: false },
+  options: [{ type: String }],
+  placeholder: { type: String, default: '' },
+  order: { type: Number, default: 0 },
+});
+
+const DocumentRequirementSchema = new Schema<IDocumentRequirement>({
+  name: { type: String, required: true },
+  description: { type: String, default: '' },
+  required: { type: Boolean, default: true },
+});
+
+const VisaTypeSchema = new Schema<IVisaType>(
+  {
+    country: { type: Schema.Types.ObjectId, ref: 'Country', required: true },
+    name: { type: String, required: true, trim: true },
+    description: { type: String, default: '' },
+    price: { type: Number, required: true, min: 0 },
+    processingDays: { type: Number, required: true, min: 1 },
+    formFields: [FormFieldSchema],
+    documentRequirements: [DocumentRequirementSchema],
+    isActive: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model<IVisaType>('VisaType', VisaTypeSchema);
