@@ -1,13 +1,17 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
+import xss from 'xss';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
 import userRoutes from './routes/user.routes';
 import publicRoutes from './routes/public.routes';
 
 const app = express();
-app.set('trust proxy', 1); // Trust first proxy for secure rate limiting
+app.set('trust proxy', 1);
 
+// ── CORS ────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
   process.env.ADMIN_URL || 'http://localhost:3001',
@@ -21,11 +25,43 @@ app.use(cors({
   credentials: true,
 }));
 
+// ── HTTP Security Headers (Helmet) ──────────────────────────────────────────
+// Disabled contentSecurityPolicy for a JSON API — CSP is a browser/HTML concern.
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// ── Body Parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// ── NoSQL Injection Protection ────────────────────────────────────────────────
+// Strips MongoDB operators ($gt, $where, etc.) from req.body, req.query, req.params.
+app.use(mongoSanitize());
+
+// ── XSS Sanitisation ─────────────────────────────────────────────────────────
+// Recursively escapes HTML tags in every string value of req.body / req.query.
+function sanitizeValue(value: unknown): unknown {
+  if (typeof value === 'string') return xss(value);
+  if (Array.isArray(value)) return value.map(sanitizeValue);
+  if (value !== null && typeof value === 'object') {
+    const sanitized: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      sanitized[k] = sanitizeValue(v);
+    }
+    return sanitized;
+  }
+  return value;
+}
+
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  if (req.body) req.body = sanitizeValue(req.body);
+  if (req.query) req.query = sanitizeValue(req.query) as typeof req.query;
+  next();
+});
+
+// ── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'VisaFlow API' }));
 
+// ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/user', userRoutes);

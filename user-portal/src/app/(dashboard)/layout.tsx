@@ -5,11 +5,19 @@ import DashboardSidebar from '@/components/layout/DashboardSidebar';
 import { useAuthStore } from '@/store/auth.store';
 import { SocketProvider } from '@/components/providers/SocketProvider';
 import NotificationDropdown from '@/components/layout/NotificationDropdown';
+import KYCModal from '@/components/kyc/KYCModal';
+import { getVaultDocuments } from '@/lib/api';
+
+interface KYCStatus { aadharFront: boolean; aadharBack: boolean; pan: boolean; }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, _hasHydrated } = useAuthStore();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+
+  // KYC gate
+  const [kycStatus, setKycStatus]   = useState<KYCStatus | null>(null);
+  const [showKYC, setShowKYC]       = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('sidebar_collapsed');
@@ -28,6 +36,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (_hasHydrated && !isAuthenticated) router.push('/login');
   }, [isAuthenticated, _hasHydrated, router]);
 
+  // Check KYC docs once auth is ready
+  useEffect(() => {
+    if (!_hasHydrated || !isAuthenticated) return;
+
+    getVaultDocuments()
+      .then((r) => {
+        const docs: { type: string; label: string }[] = r.data.data ?? [];
+        const status: KYCStatus = {
+          aadharFront: docs.some(d => d.type === 'aadhar' && d.label.toLowerCase().includes('front')),
+          aadharBack:  docs.some(d => d.type === 'aadhar' && d.label.toLowerCase().includes('back')),
+          pan:         docs.some(d => d.type === 'pan'),
+        };
+        setKycStatus(status);
+        const allDone = status.aadharFront && status.aadharBack && status.pan;
+        if (!allDone) setShowKYC(true);
+      })
+      .catch(() => {
+        // If vault check fails, don't block the user
+      });
+  }, [_hasHydrated, isAuthenticated]);
+
   if (!_hasHydrated) {
     return (
       <div className="flex min-h-screen bg-slate-50 items-center justify-center">
@@ -42,12 +71,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <SocketProvider>
       <div className="flex min-h-screen bg-slate-50">
         <DashboardSidebar collapsed={collapsed} onToggle={toggleSidebar} />
-        {/* Spacer that mirrors the fixed sidebar width to push main content */}
-        <div
-          className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
-            collapsed ? 'w-16' : 'w-64'
-          }`}
-        />
+        {/* Spacer that mirrors the fixed sidebar width */}
+        <div className={`flex-shrink-0 transition-all duration-300 ease-in-out ${collapsed ? 'w-16' : 'w-64'}`} />
         <main className="flex-1 flex flex-col min-w-0 min-h-screen">
           <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-end px-6 sticky top-0 z-10 shrink-0">
             <NotificationDropdown />
@@ -57,6 +82,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </main>
       </div>
+
+      {/* KYC Modal — renders above everything when docs are missing */}
+      {showKYC && kycStatus && (
+        <KYCModal
+          initialStatus={kycStatus}
+          onComplete={() => setShowKYC(false)}
+        />
+      )}
     </SocketProvider>
   );
 }

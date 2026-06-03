@@ -1,63 +1,55 @@
 import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
-// For AES-256, the key needs to be exactly 32 bytes (256 bits).
-// We hash the environment secret to ensure it's always exactly 32 bytes regardless of what is provided.
+const IV_LENGTH = 12; // GCM standard: 96-bit IV
+
 const getSecretKey = (): Buffer => {
-  const secret = process.env.ENCRYPTION_KEY || 'default-insecure-dev-key';
-  return crypto.createHash('sha256').update(String(secret)).digest();
+  // .trim() prevents CRLF in .env files from producing a different key than the fallback
+  const secret = (process.env.ENCRYPTION_KEY || 'default-insecure-dev-key').trim();
+  return crypto.createHash('sha256').update(secret).digest();
 };
 
-/**
- * Encrypts a string using AES-256-GCM.
- * The output format is: enc:iv(hex):authTag(hex):encrypted(hex)
- */
+// Format: enc:<iv_hex>:<authTag_hex>:<ciphertext_hex>
 export function encryptData(text: string): string {
-  if (!text || text.startsWith('enc:')) {
-    return text; // Return as is if already encrypted or empty
-  }
+  if (!text || text.startsWith('enc:')) return text;
 
-  const iv = crypto.randomBytes(16);
+  const iv = crypto.randomBytes(IV_LENGTH);
   const key = getSecretKey();
-  
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-  
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  
-  const authTag = cipher.getAuthTag().toString('hex');
-  
-  return `enc:${iv.toString('hex')}:${authTag}:${encrypted}`;
+
+  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  return `enc:${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
 }
 
-/**
- * Decrypts a string that was encrypted using encryptData.
- * Returns the original string if decryption fails or if it wasn't encrypted.
- */
 export function decryptData(text: string): string {
-  if (!text || !text.startsWith('enc:')) {
-    return text; // Not encrypted
-  }
+  if (!text || !text.startsWith('enc:')) return text;
 
   try {
-    const parts = text.split(':');
-    if (parts.length !== 4) return text;
+    // Slice off the "enc:" prefix then split into exactly 3 remaining parts
+    const rest = text.slice(4);
+    const firstColon = rest.indexOf(':');
+    const secondColon = rest.indexOf(':', firstColon + 1);
 
-    const [, ivHex, authTagHex, encryptedHex] = parts;
-    
+    if (firstColon === -1 || secondColon === -1) return text;
+
+    const ivHex = rest.slice(0, firstColon);
+    const authTagHex = rest.slice(firstColon + 1, secondColon);
+    const encryptedHex = rest.slice(secondColon + 1);
+
     const iv = Buffer.from(ivHex, 'hex');
     const authTag = Buffer.from(authTagHex, 'hex');
+    const encrypted = Buffer.from(encryptedHex, 'hex');
     const key = getSecretKey();
 
     const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
-    
-    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    
-    return decrypted;
-  } catch (err) {
-    console.error('Decryption failed for data:', err);
-    return text; // Fallback to returning original ciphertext if decryption completely fails
+
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    return decrypted.toString('utf8');
+  } catch {
+    // Return empty string so the UI doesn't display raw ciphertext
+    return '';
   }
 }
