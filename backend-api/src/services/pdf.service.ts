@@ -1,4 +1,4 @@
-import PDFDocument from 'pdfkit';
+﻿import PDFDocument from 'pdfkit';
 import { IPayment } from '../models/Payment';
 
 interface ReceiptData {
@@ -20,7 +20,7 @@ export async function generateReceiptPDF(data: ReceiptData): Promise<Buffer> {
 
     // Header
     doc.rect(0, 0, doc.page.width, 80).fill('#1d4ed8');
-    doc.fillColor('#ffffff').fontSize(22).font('Helvetica-Bold').text('VisaFlow', 50, 25);
+    doc.fillColor('#ffffff').fontSize(22).font('Helvetica-Bold').text('Pravasa Transworld', 50, 25);
     doc.fontSize(10).font('Helvetica').text('Official Payment Receipt', 50, 52);
 
     doc.moveDown(3);
@@ -67,7 +67,7 @@ export async function generateReceiptPDF(data: ReceiptData): Promise<Buffer> {
     // Footer
     doc.fontSize(9).fillColor('#94a3b8').font('Helvetica')
       .text('This is an electronically generated receipt and does not require a signature.', { align: 'center' })
-      .text('For queries, contact support@visaflow.com', { align: 'center' });
+      .text('For queries, contact support@pravasatransworld.com', { align: 'center' });
 
     doc.end();
   });

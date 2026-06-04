@@ -1,11 +1,11 @@
-import { Star, Quote } from 'lucide-react';
+﻿import { Star, Quote } from 'lucide-react';
 
 const testimonials = [
   {
     name: 'Priya Sharma',
     role: 'Student Visa · Canada',
     avatar: 'PS',
-    text: 'VisaFlow made my Canadian student visa process so smooth. The document upload was easy and I got real-time updates throughout. Approved in 12 days!',
+    text: 'Pravasa Transworld made my Canadian student visa process so smooth. The document upload was easy and I got real-time updates throughout. Approved in 12 days!',
     rating: 5,
   },
   {
@@ -19,7 +19,7 @@ const testimonials = [
     name: 'Sarah Johnson',
     role: 'Tourist Visa · Australia',
     avatar: 'SJ',
-    text: 'I was nervous about applying for my Australian visa, but VisaFlow guided me through every step. The status tracker gave me complete peace of mind.',
+    text: 'I was nervous about applying for my Australian visa, but Pravasa Transworld guided me through every step. The status tracker gave me complete peace of mind.',
     rating: 5,
   },
 ];

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+﻿import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
@@ -6,8 +6,8 @@ import { Toaster } from '@/components/ui/toaster';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'VisaFlow Admin',
-  description: 'VisaFlow Administration Portal',
+  title: 'Pravasa Transworld Admin',
+  description: 'Pravasa Transworld Administration Portal',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

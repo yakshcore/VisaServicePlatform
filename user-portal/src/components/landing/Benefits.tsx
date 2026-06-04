@@ -1,4 +1,4 @@
-import { Zap, Shield, Activity, Globe2, Clock, HeartHandshake } from 'lucide-react';
+﻿import { Zap, Shield, Activity, Globe2, Clock, HeartHandshake } from 'lucide-react';
 
 const benefits = [
   {
@@ -55,7 +55,7 @@ export default function Benefits() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <span className="inline-block bg-blue-50 text-blue-800 border border-blue-100/60 text-xs font-bold px-4 py-1.5 rounded-full mb-4 uppercase tracking-widest shadow-sm">
-            Why VisaFlow
+            Why Pravasa Transworld
           </span>
           <h2 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Everything You Need</h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto font-semibold">

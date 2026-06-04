@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState } from 'react';
 import { Mail, Phone, MapPin, Send, CheckCircle, Loader2 } from 'lucide-react';
 import { submitContactLead } from '@/lib/api';
@@ -46,7 +46,7 @@ export default function ContactSection() {
           <div>
             <div className="space-y-4 mb-10">
               {[
-                { icon: Mail, label: 'Email Us', value: 'support@visaflow.com' },
+                { icon: Mail, label: 'Email Us', value: 'support@pravasatransworld.com' },
                 { icon: Phone, label: 'Call Us', value: '+1 (800) 123-4567' },
                 { icon: MapPin, label: 'Hours', value: 'Mon–Fri, 9AM–6PM EST' },
               ].map(({ icon: Icon, label, value }) => (

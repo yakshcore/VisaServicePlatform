@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     q: 'How will I receive my visa?',
-    a: "Once approved, your visa is uploaded to your VisaFlow dashboard. You'll receive an email notification and can download the PDF directly from your application page.",
+    a: "Once approved, your visa is uploaded to your Pravasa Transworld dashboard. You'll receive an email notification and can download the PDF directly from your application page.",
   },
   {
     q: 'What happens if my documents are rejected?',
@@ -44,7 +44,7 @@ export default function FAQ() {
             FAQ
           </span>
           <h2 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Frequently Asked Questions</h2>
-          <p className="text-lg text-slate-600 font-semibold">Everything you need to know about VisaFlow.</p>
+          <p className="text-lg text-slate-600 font-semibold">Everything you need to know about Pravasa Transworld.</p>
         </div>
 
         <div className="space-y-3">

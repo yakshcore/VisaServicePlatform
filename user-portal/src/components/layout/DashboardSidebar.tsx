@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -45,7 +45,7 @@ export default function DashboardSidebar({ collapsed, onToggle }: Props) {
             <Globe className="w-5 h-5 text-white" />
           </div>
           {!collapsed && (
-            <span className="text-lg font-bold text-slate-900 truncate">VisaFlow</span>
+            <span className="text-lg font-bold text-slate-900 truncate">Pravasa Transworld</span>
           )}
         </Link>
         {!collapsed && (

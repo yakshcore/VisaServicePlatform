@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import Link from 'next/link';
 import { Globe, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -32,7 +32,7 @@ export default function Navbar() {
             <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/10 group-hover:shadow-blue-500/20 transition-all">
               <Globe className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-extrabold text-slate-900 tracking-tight">VisaFlow</span>
+            <span className="text-xl font-extrabold text-slate-900 tracking-tight">Pravasa Transworld</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">

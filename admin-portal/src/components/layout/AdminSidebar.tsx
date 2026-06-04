@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LayoutDashboard, FileText, Globe2, CreditCard, Users, LogOut, Shield, Kanban, Bell } from 'lucide-react';
@@ -32,7 +32,7 @@ export default function AdminSidebar() {
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <span className="text-white font-bold">VisaFlow</span>
+            <span className="text-white font-bold">Pravasa Transworld</span>
             <p className="text-slate-400 text-xs">Admin Console</p>
           </div>
         </div>

@@ -1,4 +1,4 @@
-# VisaFlow — Visa Management Platform
+﻿# Pravasa Transworld — Visa Management Platform
 
 A full-stack CRM platform for immigration service agencies to manage the complete visa application lifecycle, from submission to delivery.
 
@@ -6,7 +6,7 @@ A full-stack CRM platform for immigration service agencies to manage the complet
 
 ## What It Does
 
-VisaFlow gives agencies a professional, end-to-end system for handling visa applications:
+Pravasa Transworld gives agencies a professional, end-to-end system for handling visa applications:
 
 - **Applicants** submit applications online, upload documents, track their status in real-time, and download their approved visa — all without creating a password.
 - **Admins** review documents, manage countries and visa types, process payments, and deliver visas through a dedicated console.
@@ -89,7 +89,7 @@ cp backend-api/.env.example backend-api/.env
 Fill in `backend-api/.env`:
 
 ```env
-MONGODB_URI=mongodb://localhost:27017/visaflow
+MONGODB_URI=mongodb://localhost:27017/pravasatransworld
 JWT_SECRET=your_secure_secret
 CLOUDINARY_CLOUD_NAME=...
 CLOUDINARY_API_KEY=...
@@ -115,7 +115,7 @@ npm run seed
 Creates 1 admin, 8 countries, and 3 visa types.
 
 **Default admin credentials:**
-- Email: `admin@visaflow.com`
+- Email: `admin@pravasatransworld.com`
 - Password: `Admin@123`
 
 ### 4. Run the Platform

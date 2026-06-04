@@ -1,5 +1,5 @@
-{
-  "name": "visa-platform",
+﻿{
+  "name": "pravasa-transworld",
   "private": true,
   "workspaces": [
     "backend-api",

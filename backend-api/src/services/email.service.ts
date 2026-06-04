@@ -1,6 +1,6 @@
-import { createTransporter } from '../config/email';
+﻿import { createTransporter } from '../config/email';
 
-const from = process.env.EMAIL_FROM || 'VisaFlow <noreply@visaflow.com>';
+const from = process.env.EMAIL_FROM || 'Pravasa Transworld <noreply@pravasatransworld.com>';
 const adminUrl = process.env.ADMIN_URL || 'http://localhost:3001';
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
@@ -16,7 +16,7 @@ const baseStyle = `
 
 const header = (title: string) => `
   <div style="background: #1d4ed8; padding: 32px; text-align: center;">
-    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">VisaFlow</h1>
+    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">Pravasa Transworld</h1>
     <p style="color: #bfdbfe; margin: 8px 0 0; font-size: 14px;">${title}</p>
   </div>
 `;
@@ -24,7 +24,7 @@ const header = (title: string) => `
 const footer = () => `
   <div style="background: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
     <p style="color: #64748b; font-size: 12px; margin: 0;">
-      © ${new Date().getFullYear()} VisaFlow. All rights reserved.<br/>
+      © ${new Date().getFullYear()} Pravasa Transworld. All rights reserved.<br/>
       This is an automated message, please do not reply.
     </p>
   </div>
@@ -35,14 +35,14 @@ export async function sendOTPEmail(email: string, name: string, otp: string): Pr
   await transporter.sendMail({
     from,
     to: email,
-    subject: 'Your VisaFlow Login OTP',
+    subject: 'Your Pravasa Transworld Login OTP',
     html: `
       <div style="${baseStyle}">
         ${header('Secure Login')}
         <div style="padding: 40px 32px;">
           <p style="color: #0f172a; font-size: 16px; margin: 0 0 16px;">Hi ${name},</p>
           <p style="color: #475569; font-size: 15px; margin: 0 0 32px;">
-            Use the OTP below to log into your VisaFlow account. It expires in 10 minutes.
+            Use the OTP below to log into your Pravasa Transworld account. It expires in 10 minutes.
           </p>
           <div style="background: #eff6ff; border: 2px dashed #1d4ed8; border-radius: 8px; padding: 24px; text-align: center; margin: 0 0 32px;">
             <p style="color: #1d4ed8; font-size: 42px; font-weight: 800; letter-spacing: 12px; margin: 0;">${otp}</p>

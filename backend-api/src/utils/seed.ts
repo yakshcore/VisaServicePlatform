@@ -1,4 +1,4 @@
-import 'dotenv/config';
+﻿import 'dotenv/config';
 import { connectDB } from '../config/database';
 import Admin from '../models/Admin';
 import Country from '../models/Country';
@@ -54,7 +54,7 @@ async function seed() {
   // ── Admin ──────────────────────────────────────────────────────────────────
   await Admin.create({
     name:     process.env.ADMIN_NAME     || 'Super Admin',
-    email:    process.env.ADMIN_EMAIL    || 'admin@visaflow.com',
+    email:    process.env.ADMIN_EMAIL    || 'admin@pravasatransworld.com',
     phone:    process.env.ADMIN_PHONE    || '9999999999',
     password: process.env.ADMIN_PASSWORD || 'Admin@123',
   });
@@ -494,7 +494,7 @@ async function seed() {
   console.log(`✔ Visa types seeded (${visaTypes.length})`);
 
   console.log('\n✅ Seed completed successfully!');
-  console.log(`   Admin : ${process.env.ADMIN_EMAIL    || 'admin@visaflow.com'}`);
+  console.log(`   Admin : ${process.env.ADMIN_EMAIL    || 'admin@pravasatransworld.com'}`);
   console.log(`   Pass  : ${process.env.ADMIN_PASSWORD || 'Admin@123'}`);
   process.exit(0);
 }

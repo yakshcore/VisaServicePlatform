@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from 'express';
+﻿import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
@@ -59,7 +59,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 });
 
 // ── Health Check ─────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'VisaFlow API' }));
+app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'Pravasa Transworld API' }));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);

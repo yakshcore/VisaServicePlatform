@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import app from "./app";
 import { connectDB } from "./config/database";
 import { initCloudinary } from "./config/cloudinary";
@@ -16,7 +16,7 @@ initSocket(server);
     await connectDB();
     initCloudinary();
     server.listen(PORT, () => {
-      console.log(`VisaFlow API running on http://localhost:${PORT}`);
+      console.log(`Pravasa Transworld API running on http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);

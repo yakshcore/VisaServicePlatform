@@ -1,4 +1,4 @@
-import Navbar from '@/components/layout/Navbar';
+﻿import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 
 export default function TermsPage() {
@@ -10,12 +10,12 @@ export default function TermsPage() {
         <p className="text-slate-400 text-sm mb-10">Last updated: June 1, 2025</p>
         <div className="space-y-8 text-slate-600">
           {[
-            ['Acceptance of Terms', 'By using VisaFlow, you agree to these Terms of Service. If you do not agree, please do not use our platform.'],
-            ['Services', 'VisaFlow provides a platform for visa application management. We are not a government entity and do not guarantee visa approval, which is at the sole discretion of respective embassies.'],
+            ['Acceptance of Terms', 'By using Pravasa Transworld, you agree to these Terms of Service. If you do not agree, please do not use our platform.'],
+            ['Services', 'Pravasa Transworld provides a platform for visa application management. We are not a government entity and do not guarantee visa approval, which is at the sole discretion of respective embassies.'],
             ['User Responsibilities', 'You are responsible for providing accurate information and valid documents. Submitting false information may result in application rejection and account termination.'],
-            ['Payment Terms', 'Service fees are charged only after document approval. Fees are non-refundable once the visa processing stage begins, unless VisaFlow is at fault.'],
-            ['Intellectual Property', 'All content on VisaFlow is owned by VisaFlow and protected by applicable intellectual property laws.'],
-            ['Limitation of Liability', 'VisaFlow is not liable for visa rejections, embassy decisions, or delays beyond our control. Our maximum liability is limited to fees paid for the specific application.'],
+            ['Payment Terms', 'Service fees are charged only after document approval. Fees are non-refundable once the visa processing stage begins, unless Pravasa Transworld is at fault.'],
+            ['Intellectual Property', 'All content on Pravasa Transworld is owned by Pravasa Transworld and protected by applicable intellectual property laws.'],
+            ['Limitation of Liability', 'Pravasa Transworld is not liable for visa rejections, embassy decisions, or delays beyond our control. Our maximum liability is limited to fees paid for the specific application.'],
             ['Governing Law', 'These terms are governed by applicable laws. Disputes will be resolved through binding arbitration.'],
           ].map(([title, text]) => (
             <div key={title}>

@@ -1,4 +1,4 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 import { Globe, Mail, Phone, MapPin } from 'lucide-react';
 
 export default function Footer() {
@@ -11,7 +11,7 @@ export default function Footer() {
               <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
                 <Globe className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-extrabold text-slate-900 tracking-tight">VisaFlow</span>
+              <span className="text-xl font-extrabold text-slate-900 tracking-tight">Pravasa Transworld</span>
             </div>
             <p className="text-sm text-slate-500 leading-relaxed max-w-sm mb-6 font-semibold">
               Professional visa assistance that simplifies your journey from application to approval.
@@ -19,7 +19,7 @@ export default function Footer() {
             </p>
             <div className="space-y-2 font-semibold">
               {[
-                { icon: Mail, text: 'support@visaflow.com' },
+                { icon: Mail, text: 'support@pravasatransworld.com' },
                 { icon: Phone, text: '+1 (800) 123-4567' },
                 { icon: MapPin, text: 'Mon–Fri, 9AM–6PM EST' },
               ].map(({ icon: Icon, text }) => (
@@ -64,7 +64,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-slate-200 mt-12 pt-8 text-sm text-center text-slate-400 font-bold">
-          © {new Date().getFullYear()} VisaFlow. All rights reserved.
+          © {new Date().getFullYear()} Pravasa Transworld. All rights reserved.
         </div>
       </div>
     </footer>

@@ -1,8 +1,8 @@
-# VisaFlow Platform — Deep Technical Context
+﻿# Pravasa Transworld Platform — Deep Technical Context
 
 ## Overview
 
-VisaFlow is a full-stack, multi-tenant Visa CRM (Customer Relationship Management) platform designed for immigration service agencies. It manages the complete lifecycle of a visa application — from initial submission through embassy review to final delivery — with separate surfaces for applicants and administrators.
+Pravasa Transworld is a full-stack, multi-tenant Visa CRM (Customer Relationship Management) platform designed for immigration service agencies. It manages the complete lifecycle of a visa application — from initial submission through embassy review to final delivery — with separate surfaces for applicants and administrators.
 
 ---
 
@@ -290,12 +290,12 @@ Four email templates, all styled with inline CSS (blue brand: `#1d4ed8`):
 
 | Function | Trigger | Subject |
 |---|---|---|
-| `sendOTPEmail` | OTP request | "Your VisaFlow Login OTP" |
+| `sendOTPEmail` | OTP request | "Your Pravasa Transworld Login OTP" |
 | `sendDocumentStatusEmail` | Doc approve/reject | "Documents Approved" / "Document Revision Required" |
 | `sendStatusUpdateEmail` | Any status change | "Application Update: {status label}" |
 | `sendVisaDeliveredEmail` | Visa file uploaded | "Your Visa is Ready for Download!" |
 
-All templates share a header (blue banner, VisaFlow logo) and footer (copyright, do-not-reply).
+All templates share a header (blue banner, Pravasa Transworld logo) and footer (copyright, do-not-reply).
 
 ---
 
@@ -357,7 +357,7 @@ All templates share a header (blue banner, VisaFlow logo) and footer (copyright,
 ```env
 # Backend (backend-api/.env)
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/visaflow
+MONGODB_URI=mongodb://localhost:27017/pravasatransworld
 JWT_SECRET=<secret>
 JWT_EXPIRES_IN=7d
 
@@ -369,9 +369,9 @@ EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USER=<gmail>
 EMAIL_PASS=<app-password>
-EMAIL_FROM=VisaFlow <noreply@visaflow.com>
+EMAIL_FROM=Pravasa Transworld <noreply@pravasatransworld.com>
 
-ADMIN_EMAIL=admin@visaflow.com
+ADMIN_EMAIL=admin@pravasatransworld.com
 ADMIN_PASSWORD=Admin@123
 ADMIN_NAME=Super Admin
 ADMIN_PHONE=9999999999
@@ -385,7 +385,7 @@ ADMIN_URL=http://localhost:3001
 ## Default Seed Data
 
 Running `npm run seed` creates:
-- **1 Super Admin** — `admin@visaflow.com` / `Admin@123`
+- **1 Super Admin** — `admin@pravasatransworld.com` / `Admin@123`
 - **8 Countries** — with flags and descriptions
 - **3 Visa Types** — across different countries, with sample form fields and document requirements
 

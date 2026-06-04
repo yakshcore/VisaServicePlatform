@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Loader2 } from 'lucide-react';
@@ -39,7 +39,7 @@ export default function AdminLoginPage() {
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Admin Login</h1>
-          <p className="text-slate-400 text-sm mt-1">VisaFlow Administration Console</p>
+          <p className="text-slate-400 text-sm mt-1">Pravasa Transworld Administration Console</p>
         </div>
 
         <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
                 id="email"
                 type="email"
                 className="mt-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-                placeholder="admin@visaflow.com"
+                placeholder="admin@pravasatransworld.com"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
@@ -74,7 +74,7 @@ export default function AdminLoginPage() {
           </form>
         </div>
         <p className="text-center text-xs text-slate-500 mt-4">
-          Default: admin@visaflow.com / Admin@123
+          Default: admin@pravasatransworld.com / Admin@123
         </p>
       </div>
     </div>
