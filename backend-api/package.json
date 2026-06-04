@@ -1,6 +1,9 @@
 {
   "name": "backend-api",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
@@ -8,7 +11,9 @@
     "seed": "ts-node src/utils/seed.ts"
   },
   "dependencies": {
+    "@types/archiver": "^7.0.0",
     "@types/pdfkit": "^0.17.6",
+    "archiver": "^6.0.2",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.3",
     "cors": "^2.8.5",

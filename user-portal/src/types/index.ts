@@ -37,8 +37,18 @@ export interface VisaType {
   description: string;
   price: number;
   processingDays: number;
+  validity?: string;
   formFields: FormField[];
   documentRequirements: DocumentRequirement[];
+}
+
+export interface VaultDocument {
+  _id: string;
+  type: string;
+  label: string;
+  url: string;
+  publicId: string;
+  createdAt: string;
 }
 
 export interface FormField {

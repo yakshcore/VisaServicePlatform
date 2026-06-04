@@ -1,19 +1,22 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, ChevronLeft, Loader2, Check, Upload, X, FileText, AlertCircle, Search } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Loader2, Check, Upload, X, FileText, AlertCircle, Search, Vault, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
-import { getPublicCountries, getPublicVisaTypes, createApplication, uploadDocument } from '@/lib/api';
+import { getPublicCountries, getPublicVisaTypes, createApplication, uploadDocument, addDocumentFromVault, makePayment, getVaultDocuments } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
-import type { Country, VisaType, FormField, DocumentRequirement } from '@/types';
+import type { Country, VisaType, FormField, DocumentRequirement, VaultDocument } from '@/types';
 
 type Step = 1 | 2 | 3 | 4 | 5;
+type DocSource =
+  | { type: 'vault'; vaultDocId: string; label: string; url: string }
+  | { type: 'file'; file: File };
 
-const STEPS = ['Country', 'Visa Type', 'Application Form', 'Documents', 'Review'];
+const STEPS = ['Country', 'Visa Type', 'Application Form', 'Documents', 'Review & Pay'];
 const DRAFT_KEY = 'visa_app_draft';
 const ACCEPTED = '.jpg,.jpeg,.png,.pdf,.doc,.docx';
 
@@ -21,6 +24,18 @@ function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Map a requirement name to a vault document type for auto-matching */
+function getVaultType(reqName: string): string | null {
+  const lower = reqName.toLowerCase();
+  if (lower.includes('passport')) return 'passport';
+  if (lower.includes('aadhaar') || lower.includes('aadhar') || lower.includes('adhar')) return 'aadhar';
+  if (lower.includes('pan')) return 'pan';
+  if (lower.includes('photograph') || lower.includes('photo')) return 'photograph';
+  if (lower.includes('bank')) return 'bank_statement';
+  if (lower.includes('degree') || lower.includes('diploma')) return 'degree';
+  return null;
 }
 
 export default function ApplyPage() {
@@ -31,16 +46,20 @@ export default function ApplyPage() {
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [selectedVisa, setSelectedVisa] = useState<VisaType | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
-  const [docFiles, setDocFiles] = useState<Record<string, File>>({});
+  const [docSources, setDocSources] = useState<Record<string, DocSource>>({});
+  const [vaultDocs, setVaultDocs] = useState<VaultDocument[]>([]);
   const [countrySearch, setCountrySearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
   const [draftRestored, setDraftRestored] = useState(false);
 
-  // Restore draft on mount, then load countries
+  // Load vault docs on mount, restore draft
   useEffect(() => {
     getPublicCountries().then((r) => setCountries(r.data.data));
+    getVaultDocuments()
+      .then((r) => setVaultDocs(r.data.data || []))
+      .catch(() => {});
 
     const raw = localStorage.getItem(DRAFT_KEY);
     if (raw) {
@@ -58,12 +77,31 @@ export default function ApplyPage() {
     setDraftRestored(true);
   }, []);
 
-  // Auto-save draft whenever key state changes (skip until restore is done)
+  // Auto-save draft (no docSources — Files can't be serialised)
   useEffect(() => {
     if (!draftRestored || !selectedCountry) return;
     const draft = { step, selectedCountry, selectedVisa, formData, visaTypes };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
   }, [draftRestored, step, selectedCountry, selectedVisa, formData, visaTypes]);
+
+  // Auto-suggest vault docs when user reaches step 4
+  useEffect(() => {
+    if (step !== 4 || !selectedVisa || vaultDocs.length === 0) return;
+    const requirements = selectedVisa.documentRequirements;
+    setDocSources((prev) => {
+      const next = { ...prev };
+      for (const req of requirements) {
+        if (next[req.name]) continue; // already set by user
+        const vaultType = getVaultType(req.name);
+        if (!vaultType) continue;
+        const matches = vaultDocs.filter((v) => v.type === vaultType);
+        if (matches.length === 1) {
+          next[req.name] = { type: 'vault', vaultDocId: matches[0]._id, label: matches[0].label, url: matches[0].url };
+        }
+      }
+      return next;
+    });
+  }, [step, selectedVisa, vaultDocs]);
 
   const startOver = () => {
     localStorage.removeItem(DRAFT_KEY);
@@ -71,7 +109,7 @@ export default function ApplyPage() {
     setSelectedCountry(null);
     setSelectedVisa(null);
     setFormData({});
-    setDocFiles({});
+    setDocSources({});
     setVisaTypes([]);
     setCountrySearch('');
   };
@@ -79,7 +117,7 @@ export default function ApplyPage() {
   const handleCountrySelect = async (country: Country) => {
     setSelectedCountry(country);
     setSelectedVisa(null);
-    setDocFiles({});
+    setDocSources({});
     setLoading(true);
     try {
       const r = await getPublicVisaTypes(country._id);
@@ -95,17 +133,24 @@ export default function ApplyPage() {
     input.accept = ACCEPTED;
     input.onchange = (e: any) => {
       const file = e.target?.files?.[0];
-      if (file) setDocFiles((prev) => ({ ...prev, [requirementName]: file }));
+      if (file) setDocSources((prev) => ({ ...prev, [requirementName]: { type: 'file', file } }));
     };
     input.click();
   };
 
-  const removeFile = (requirementName: string) => {
-    setDocFiles((prev) => {
+  const clearDocSource = (requirementName: string) => {
+    setDocSources((prev) => {
       const next = { ...prev };
       delete next[requirementName];
       return next;
     });
+  };
+
+  const selectVaultDoc = (requirementName: string, vaultDoc: VaultDocument) => {
+    setDocSources((prev) => ({
+      ...prev,
+      [requirementName]: { type: 'vault', vaultDocId: vaultDoc._id, label: vaultDoc.label, url: vaultDoc.url },
+    }));
   };
 
   const handleSubmit = async () => {
@@ -117,19 +162,27 @@ export default function ApplyPage() {
       const r = await createApplication({ visaTypeId: selectedVisa._id, formResponses: formData });
       const appId = r.data.data._id;
 
-      // 2. Upload collected documents one by one
-      const docEntries = Object.entries(docFiles);
-      for (let i = 0; i < docEntries.length; i++) {
-        const [requirementName, file] = docEntries[i];
-        setSubmitStatus(`Uploading ${requirementName} (${i + 1}/${docEntries.length})…`);
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('requirementName', requirementName);
-        await uploadDocument(appId, fd);
+      // 2. Upload / link each document
+      const entries = Object.entries(docSources);
+      for (let i = 0; i < entries.length; i++) {
+        const [requirementName, source] = entries[i];
+        setSubmitStatus(`Uploading documents (${i + 1}/${entries.length})…`);
+        if (source.type === 'vault') {
+          await addDocumentFromVault(appId, { vaultDocId: source.vaultDocId, requirementName });
+        } else {
+          const fd = new FormData();
+          fd.append('file', source.file);
+          fd.append('requirementName', requirementName);
+          await uploadDocument(appId, fd);
+        }
       }
 
+      // 3. Process payment
+      setSubmitStatus('Processing payment…');
+      await makePayment(appId);
+
       localStorage.removeItem(DRAFT_KEY);
-      toast({ title: 'Application submitted!', description: 'Your documents have been uploaded.', variant: 'success' });
+      toast({ title: 'Application submitted!', description: 'Payment received. Our team will review your documents shortly.', variant: 'success' });
       router.push(`/applications/${appId}`);
     } catch (err: any) {
       toast({ title: 'Error', description: err.response?.data?.message || 'Failed to submit', variant: 'destructive' });
@@ -161,10 +214,10 @@ export default function ApplyPage() {
     if (step === 1) return !!selectedCountry;
     if (step === 2) return !!selectedVisa && !loading;
     if (step === 4 && selectedVisa) {
-      // All required documents must have a file
+      // All required documents must have a source (vault or file)
       return selectedVisa.documentRequirements
         .filter((r) => r.required)
-        .every((r) => docFiles[r.name]);
+        .every((r) => !!docSources[r.name]);
     }
     return true;
   };
@@ -219,7 +272,6 @@ export default function ApplyPage() {
         </div>
       );
     }
-    // file type in the application form — just store the name
     if (field.type === 'file') {
       return (
         <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50">
@@ -251,7 +303,7 @@ export default function ApplyPage() {
   };
 
   const requirements: DocumentRequirement[] = selectedVisa?.documentRequirements || [];
-  const requiredMissing = requirements.filter((r) => r.required && !docFiles[r.name]);
+  const requiredMissing = requirements.filter((r) => r.required && !docSources[r.name]);
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -354,7 +406,7 @@ export default function ApplyPage() {
                 {visaTypes.map((v) => (
                   <button
                     key={v._id}
-                    onClick={() => { setSelectedVisa(v); setDocFiles({}); }}
+                    onClick={() => { setSelectedVisa(v); setDocSources({}); }}
                     className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
                       selectedVisa?._id === v._id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-200'
                     }`}
@@ -372,6 +424,7 @@ export default function ApplyPage() {
                       <div className="text-right ml-4 flex-shrink-0">
                         <p className="font-bold text-blue-700">{formatCurrency(v.price)}</p>
                         <p className="text-xs text-slate-400">{v.processingDays} days</p>
+                        {v.validity && <p className="text-xs text-slate-400">Valid: {v.validity}</p>}
                       </div>
                     </div>
                   </button>
@@ -405,7 +458,7 @@ export default function ApplyPage() {
           </div>
         )}
 
-        {/* ── Step 4: Upload Documents ── */}
+        {/* ── Step 4: Documents (with vault) ── */}
         {step === 4 && selectedVisa && (
           <div>
             <div className="flex items-start justify-between mb-5">
@@ -416,7 +469,7 @@ export default function ApplyPage() {
                 </p>
               </div>
               <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full font-medium flex-shrink-0">
-                {Object.keys(docFiles).length}/{requirements.length} uploaded
+                {Object.keys(docSources).length}/{requirements.length} ready
               </span>
             </div>
 
@@ -428,71 +481,104 @@ export default function ApplyPage() {
             ) : (
               <div className="space-y-3">
                 {requirements.map((req) => {
-                  const file = docFiles[req.name];
+                  const source = docSources[req.name];
+                  const vaultType = getVaultType(req.name);
+                  const vaultMatches = vaultType ? vaultDocs.filter((v) => v.type === vaultType) : [];
+                  const isAutoFilled = source?.type === 'vault' && vaultMatches.some((v) => v._id === source.vaultDocId);
+
                   return (
                     <div
                       key={req._id || req.name}
                       className={`rounded-xl border-2 p-4 transition-all ${
-                        file
-                          ? 'border-green-200 bg-green-50'
+                        source
+                          ? source.type === 'vault'
+                            ? 'border-green-200 bg-green-50'
+                            : 'border-green-200 bg-green-50'
                           : req.required
                           ? 'border-slate-200 bg-white hover:border-blue-200'
                           : 'border-dashed border-slate-200 bg-slate-50/50'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                            file ? 'bg-green-100' : 'bg-slate-100'
-                          }`}>
-                            {file
-                              ? <Check className="w-4 h-4 text-green-600" />
-                              : <FileText className="w-4 h-4 text-slate-400" />}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-900">
-                              {req.name}
-                              {req.required && <span className="text-red-500 ml-1">*</span>}
-                              {!req.required && <span className="text-slate-400 ml-1.5 text-xs font-normal">(optional)</span>}
-                            </p>
-                            {req.description && (
-                              <p className="text-xs text-slate-400 mt-0.5">{req.description}</p>
-                            )}
-                            {file && (
-                              <div className="flex items-center gap-1.5 mt-1.5">
-                                <span className="text-xs text-green-700 font-medium truncate max-w-[200px]">{file.name}</span>
-                                <span className="text-xs text-slate-400">· {formatBytes(file.size)}</span>
-                              </div>
-                            )}
-                          </div>
+                      {/* Requirement header */}
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                          source ? 'bg-green-100' : 'bg-slate-100'
+                        }`}>
+                          {source
+                            ? <Check className="w-4 h-4 text-green-600" />
+                            : <FileText className="w-4 h-4 text-slate-400" />}
                         </div>
-
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {file ? (
-                            <>
-                              <button
-                                onClick={() => pickFile(req.name)}
-                                className="text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg border border-blue-100 transition-colors"
-                              >
-                                Replace
-                              </button>
-                              <button
-                                onClick={() => removeFile(req.name)}
-                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              onClick={() => pickFile(req.name)}
-                              className="flex items-center gap-1.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
-                            >
-                              <Upload className="w-3.5 h-3.5" />
-                              Upload
-                            </button>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-900">
+                            {req.name}
+                            {req.required && <span className="text-red-500 ml-1">*</span>}
+                            {!req.required && <span className="text-slate-400 ml-1.5 text-xs font-normal">(optional)</span>}
+                          </p>
+                          {req.description && (
+                            <p className="text-xs text-slate-400 mt-0.5">{req.description}</p>
                           )}
                         </div>
+                        {isAutoFilled && (
+                          <span className="text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full flex-shrink-0">
+                            Auto-filled from vault
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Current selection */}
+                      {source && (
+                        <div className="flex items-center gap-2 mb-3 ml-11">
+                          {source.type === 'vault' ? (
+                            <span className="text-xs text-green-700 font-medium flex items-center gap-1">
+                              <Vault className="w-3 h-3" /> From vault: {source.label}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-green-700 font-medium truncate max-w-[200px]">
+                              {source.file.name}
+                              <span className="text-slate-400 ml-1">· {formatBytes(source.file.size)}</span>
+                            </span>
+                          )}
+                          <button
+                            onClick={() => clearDocSource(req.name)}
+                            className="p-0.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Vault suggestion chips */}
+                      {vaultMatches.length > 0 && (
+                        <div className="flex flex-wrap gap-2 ml-11 mb-2">
+                          {vaultMatches.map((vd) => {
+                            const isSelected = source?.type === 'vault' && source.vaultDocId === vd._id;
+                            return (
+                              <button
+                                key={vd._id}
+                                onClick={() => isSelected ? clearDocSource(req.name) : selectVaultDoc(req.name, vd)}
+                                className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
+                                  isSelected
+                                    ? 'bg-green-100 border-green-300 text-green-700'
+                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50'
+                                }`}
+                              >
+                                <Vault className="w-3 h-3" />
+                                {isSelected ? `Selected: ${vd.label} ✓` : `Use from vault: ${vd.label}`}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Upload new file button */}
+                      <div className="ml-11">
+                        <button
+                          onClick={() => pickFile(req.name)}
+                          className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          {source?.type === 'file' ? 'Replace file' : 'Upload new file'}
+                        </button>
                       </div>
                     </div>
                   );
@@ -506,7 +592,7 @@ export default function ApplyPage() {
                 <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-700">
                   <span className="font-semibold">Required: </span>
-                  {requiredMissing.map((r) => r.name).join(', ')} must be uploaded before proceeding.
+                  {requiredMissing.map((r) => r.name).join(', ')} must be provided before proceeding.
                 </p>
               </div>
             )}
@@ -517,10 +603,10 @@ export default function ApplyPage() {
           </div>
         )}
 
-        {/* ── Step 5: Review ── */}
+        {/* ── Step 5: Review & Pay ── */}
         {step === 5 && selectedVisa && (
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Review &amp; Submit</h2>
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">Review &amp; Pay</h2>
             <div className="space-y-4">
               {/* Visa details */}
               <div className="bg-slate-50 rounded-xl p-4">
@@ -538,13 +624,15 @@ export default function ApplyPage() {
                     <p className="font-medium mt-0.5">{selectedVisa.name}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-400">Fee</p>
-                    <p className="font-bold text-blue-700 mt-0.5">{formatCurrency(selectedVisa.price)}</p>
-                  </div>
-                  <div>
                     <p className="text-xs text-slate-400">Processing Time</p>
                     <p className="font-medium mt-0.5">{selectedVisa.processingDays} business days</p>
                   </div>
+                  {selectedVisa.validity && (
+                    <div>
+                      <p className="text-xs text-slate-400">Validity</p>
+                      <p className="font-medium mt-0.5">{selectedVisa.validity}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -569,14 +657,20 @@ export default function ApplyPage() {
                   <p className="text-xs text-slate-500 font-semibold mb-3 uppercase tracking-wide">Documents</p>
                   <div className="space-y-2">
                     {requirements.map((req) => {
-                      const file = docFiles[req.name];
+                      const source = docSources[req.name];
                       return (
                         <div key={req._id || req.name} className="flex items-center justify-between text-sm">
                           <span className="text-slate-700">{req.name}{req.required && <span className="text-red-400 ml-1">*</span>}</span>
-                          {file ? (
-                            <span className="text-green-700 font-medium flex items-center gap-1">
-                              <Check className="w-3.5 h-3.5" /> {file.name}
-                            </span>
+                          {source ? (
+                            source.type === 'vault' ? (
+                              <span className="text-green-700 font-medium flex items-center gap-1">
+                                <Vault className="w-3.5 h-3.5" /> {source.label}
+                              </span>
+                            ) : (
+                              <span className="text-green-700 font-medium flex items-center gap-1">
+                                <Check className="w-3.5 h-3.5" /> {source.file.name}
+                              </span>
+                            )
                           ) : (
                             <span className="text-slate-400 italic text-xs">Not provided</span>
                           )}
@@ -587,10 +681,19 @@ export default function ApplyPage() {
                 </div>
               )}
 
-              {/* Info banner */}
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                <p className="text-sm text-blue-700">
-                  <strong>Note:</strong> Payment is only charged after our team reviews and approves your documents.
+              {/* Payment summary */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide mb-1">Total Fee</p>
+                  <p className="text-3xl font-bold text-blue-900">{formatCurrency(selectedVisa.price)}</p>
+                </div>
+                <CreditCard className="w-10 h-10 text-blue-400" />
+              </div>
+
+              {/* Disclaimer */}
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+                <p className="text-sm text-amber-700">
+                  <strong>Simulated payment</strong> — in production this connects to a payment gateway. Your application will be submitted and payment confirmed immediately.
                 </p>
               </div>
             </div>
@@ -609,14 +712,17 @@ export default function ApplyPage() {
             Next <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         ) : (
-          <Button onClick={handleSubmit} disabled={submitting} className="min-w-[160px]">
+          <Button onClick={handleSubmit} disabled={submitting} className="min-w-[200px]">
             {submitting ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-xs">{submitStatus || 'Submitting…'}</span>
               </span>
             ) : (
-              'Submit Application'
+              <span className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4" />
+                Pay &amp; Submit Application
+              </span>
             )}
           </Button>
         )}

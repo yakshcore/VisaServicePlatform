@@ -93,7 +93,7 @@ export const uploadDocument = async (req: AuthRequest, res: Response): Promise<v
   const application = await Application.findOne({ _id: req.params.id, user: req.user!._id });
   if (!application) { sendError(res, 'Application not found', 404); return; }
 
-  if (!['submitted', 'documents_under_review', 'documents_approved'].includes(application.status)) {
+  if (!['submitted', 'payment_completed', 'documents_under_review', 'documents_approved'].includes(application.status)) {
     sendError(res, 'Cannot upload documents at this stage'); return;
   }
 
@@ -112,11 +112,6 @@ export const uploadDocument = async (req: AuthRequest, res: Response): Promise<v
     doc = await Document.create({ application: application._id, requirementName, url, publicId });
   }
 
-  if (application.status === 'submitted') {
-    application.status = 'documents_under_review';
-    await application.save();
-  }
-
   sendSuccess(res, doc, 'Document uploaded');
 };
 
@@ -124,7 +119,7 @@ export const makePayment = async (req: AuthRequest, res: Response): Promise<void
   const application = await Application.findOne({ _id: req.params.id, user: req.user!._id });
   if (!application) { sendError(res, 'Application not found', 404); return; }
 
-  if (application.status !== 'payment_pending') {
+  if (!['submitted', 'payment_pending'].includes(application.status)) {
     sendError(res, 'Payment is not currently required for this application'); return;
   }
 
@@ -145,4 +140,34 @@ export const getPublicVisaTypes = async (req: AuthRequest, res: Response): Promi
   if (req.query.country) filter.country = req.query.country;
   const visaTypes = await VisaType.find(filter).populate('country', 'name flag').sort({ name: 1 });
   sendSuccess(res, visaTypes);
+};
+
+import DocumentVault from '../../models/DocumentVault';
+
+export const addDocumentFromVault = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { vaultDocId, requirementName } = req.body;
+  if (!vaultDocId || !requirementName) { sendError(res, 'vaultDocId and requirementName are required'); return; }
+
+  const application = await Application.findOne({ _id: req.params.id, user: req.user!._id });
+  if (!application) { sendError(res, 'Application not found', 404); return; }
+  if (!['submitted', 'payment_completed', 'documents_under_review', 'documents_approved'].includes(application.status)) {
+    sendError(res, 'Cannot add documents at this stage'); return;
+  }
+
+  const vaultDoc = await DocumentVault.findOne({ _id: vaultDocId, user: req.user!._id });
+  if (!vaultDoc) { sendError(res, 'Vault document not found', 404); return; }
+
+  const existing = await Document.findOne({ application: application._id, requirementName });
+  let doc;
+  if (existing) {
+    existing.url = vaultDoc.url;
+    existing.publicId = vaultDoc.publicId;
+    existing.status = 'pending';
+    existing.rejectionReason = '';
+    existing.reviewedAt = null;
+    doc = await existing.save();
+  } else {
+    doc = await Document.create({ application: application._id, requirementName, url: vaultDoc.url, publicId: vaultDoc.publicId });
+  }
+  sendSuccess(res, doc, 'Document linked from vault');
 };

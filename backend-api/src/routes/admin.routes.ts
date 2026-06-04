@@ -6,6 +6,7 @@ import * as visaTypes from '../controllers/admin/visaTypes.controller';
 import * as apps from '../controllers/admin/applications.controller';
 import * as leads from '../controllers/admin/contactLeads.controller';
 import * as notifications from '../controllers/admin/notifications.controller';
+import * as users from '../controllers/admin/users.controller';
 
 const router = Router();
 router.use(adminProtect);
@@ -31,6 +32,7 @@ router.put('/applications/:id/document-review', apps.reviewDocument);
 router.put('/applications/:id/approve-documents', apps.approveAllDocuments);
 router.post('/applications/:id/visa-file', upload.single('file'), apps.uploadVisaFile);
 router.put('/applications/:id/manual-payment', apps.manualPaymentOverride);
+router.get('/applications/:id/documents/zip', apps.downloadApplicationDocumentsZip);
 
 // Payments
 router.get('/payments', apps.getAdminPayments);
@@ -38,6 +40,8 @@ router.get('/payments', apps.getAdminPayments);
 // Users
 router.get('/users', apps.getUsers);
 router.get('/users/:userId/applications', apps.getUserApplications);
+router.get('/users/:userId/vault', users.getUserVaultDocuments);
+router.get('/users/:userId/vault/zip', users.downloadUserVaultZip);
 
 // Contact Leads
 router.get('/leads', leads.getLeads);

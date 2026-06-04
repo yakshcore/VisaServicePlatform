@@ -48,6 +48,8 @@ export const createApplication = (data: { visaTypeId: string; formResponses: Rec
 export const getApplication = (id: string) => api.get(`/user/applications/${id}`);
 export const uploadDocument = (id: string, formData: FormData) =>
   api.post(`/user/applications/${id}/documents`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const addDocumentFromVault = (id: string, data: { vaultDocId: string; requirementName: string }) =>
+  api.post(`/user/applications/${id}/documents/from-vault`, data);
 export const makePayment = (id: string) => api.put(`/user/applications/${id}/payment`);
 
 // User — Document Vault

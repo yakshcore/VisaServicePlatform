@@ -25,7 +25,7 @@ export default function AdminSidebar() {
   };
 
   return (
-    <aside className="w-64 bg-slate-900 flex flex-col min-h-screen flex-shrink-0">
+    <aside className="w-64 bg-slate-900 flex flex-col h-screen overflow-y-auto flex-shrink-0 sticky top-0">
       <div className="p-6 border-b border-slate-800">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">

@@ -64,9 +64,19 @@ export interface VisaType {
   description: string;
   price: number;
   processingDays: number;
+  validity: string;
   formFields: FormField[];
   documentRequirements: DocumentRequirement[];
   isActive: boolean;
+}
+
+export interface VaultDocument {
+  _id: string;
+  type: string;
+  label: string;
+  url: string;
+  publicId: string;
+  createdAt: string;
 }
 
 export interface User {

@@ -1,12 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Mail, Phone, Calendar, FileText, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, FileText, ExternalLink, FolderArchive, Download, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getUsers, getUserApplications } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/use-toast';
+import { getUsers, getUserApplications, getUserVaultDocuments, downloadUserVaultZip } from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
-import type { User as IUser, Application, ApplicationStatus } from '@/types';
+import type { User as IUser, Application, ApplicationStatus, VaultDocument } from '@/types';
 import { STATUS_LABELS } from '@/types';
 
 const STATUS_COLORS: Record<ApplicationStatus, string> = {
@@ -27,7 +29,9 @@ export default function CustomerProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<IUser | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [vaultDocs, setVaultDocs] = useState<VaultDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingZip, setDownloadingZip] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -36,8 +40,28 @@ export default function CustomerProfilePage() {
         setUser(found || null);
       }),
       getUserApplications(id).then((r) => setApplications(r.data.data)),
+      getUserVaultDocuments(id).then((r) => setVaultDocs(r.data.data)).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [id]);
+
+  const handleDownloadVaultZip = async () => {
+    setDownloadingZip(true);
+    try {
+      const response = await downloadUserVaultZip(id);
+      const url = URL.createObjectURL(response.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `vault-${user?.name?.replace(/\s+/g, '-') ?? id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: 'Download failed', description: 'Could not create zip file.', variant: 'destructive' });
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -121,6 +145,56 @@ export default function CustomerProfilePage() {
             <p className="text-xs text-slate-500 mt-0.5">Total Spend</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Vault Documents */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <FolderArchive className="w-5 h-5 text-slate-500" />
+            Document Vault
+            <span className="text-sm font-normal text-slate-400">({vaultDocs.length})</span>
+          </h2>
+          {vaultDocs.length > 0 && (
+            <Button size="sm" variant="outline" onClick={handleDownloadVaultZip} disabled={downloadingZip}>
+              {downloadingZip ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              Download ZIP
+            </Button>
+          )}
+        </div>
+        {vaultDocs.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
+            No documents in vault.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {vaultDocs.map((doc) => (
+              <div key={doc._id} className="bg-white rounded-xl border border-slate-200 p-4 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-slate-900 text-sm truncate">{doc.label}</p>
+                  <p className="text-xs text-slate-400 capitalize">{doc.type.replace('_', ' ')}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{formatDate(doc.createdAt)}</p>
+                </div>
+                <a
+                  href={doc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
+                  title="View document"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Applications */}

@@ -2,12 +2,12 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, Loader2, Upload, ExternalLink } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, Loader2, Upload, ExternalLink, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
-import { getApplication, reviewDocument, approveAllDocuments, updateStatus, uploadVisaFile, manualPaymentOverride } from '@/lib/api';
+import { getApplication, reviewDocument, approveAllDocuments, updateStatus, uploadVisaFile, manualPaymentOverride, downloadApplicationDocumentsZip } from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import type { Application, Document, VisaFile } from '@/types';
 import { STATUS_LABELS, ALL_STATUSES } from '@/types';
@@ -19,6 +19,7 @@ export default function AdminApplicationDetailPage() {
   const [visaFile, setVisaFile] = useState<VisaFile | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [downloadingZip, setDownloadingZip] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
@@ -37,6 +38,25 @@ export default function AdminApplicationDetailPage() {
 
   useEffect(() => { fetchData(); }, [id]);
 
+  const handleDownloadZip = async () => {
+    setDownloadingZip(true);
+    try {
+      const response = await downloadApplicationDocumentsZip(id);
+      const url = URL.createObjectURL(response.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `docs-${application?.referenceId || id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: 'Download failed', description: 'Could not create zip file.', variant: 'destructive' });
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
+
   const handleDocReview = async (documentId: string, status: 'approved' | 'rejected', reason?: string) => {
     setProcessing(true);
     try {
@@ -54,7 +74,7 @@ export default function AdminApplicationDetailPage() {
     setProcessing(true);
     try {
       await approveAllDocuments(id);
-      toast({ title: 'All documents approved — payment requested!', variant: 'success' });
+      toast({ title: 'All documents approved!', variant: 'success' });
       fetchData();
     } catch (err: any) {
       toast({ title: 'Error', description: err.response?.data?.message, variant: 'destructive' });
@@ -157,16 +177,25 @@ export default function AdminApplicationDetailPage() {
                   <h3 className="font-semibold text-slate-900">Documents</h3>
                   <p className="text-xs text-slate-400">{documents.length} document(s) submitted</p>
                 </div>
+                <div className="flex items-center gap-2">
+                  {documents.length > 0 && (
+                    <Button size="sm" variant="outline" onClick={handleDownloadZip} disabled={downloadingZip}>
+                      {downloadingZip
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <><Download className="w-3.5 h-3.5 mr-1.5" />Download All</>}
+                    </Button>
+                  )}
                 {pendingDocs.length > 0 && (
                   <Button size="sm" onClick={handleApproveAll} disabled={processing}>
                     {processing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Approve All Documents'}
                   </Button>
                 )}
-                {allApproved && application.status === 'documents_under_review' && (
+                {allApproved && ['documents_under_review', 'payment_completed'].includes(application.status) && (
                   <Button size="sm" onClick={handleApproveAll} disabled={processing}>
-                    Request Payment
+                    Approve All Documents
                   </Button>
                 )}
+                </div>
               </div>
               <div className="divide-y divide-slate-100">
                 {documents.map((doc) => (
@@ -291,7 +320,7 @@ export default function AdminApplicationDetailPage() {
           </Card>
 
           {/* Cash Payment Override */}
-          {application.status === 'payment_pending' && (
+          {['payment_pending', 'submitted'].includes(application.status) && (
             <Card className="border-yellow-200">
               <div className="p-4 border-b border-yellow-100 bg-yellow-50">
                 <h3 className="font-semibold text-yellow-900">Cash Payment Override</h3>

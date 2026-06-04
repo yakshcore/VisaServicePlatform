@@ -50,7 +50,7 @@ export const downloadReceipt = async (req: AuthRequest, res: Response): Promise<
 export const processPayment = async (req: AuthRequest, res: Response): Promise<void> => {
   const application = await Application.findOne({ _id: req.params.id, user: req.user!._id });
   if (!application) { sendError(res, 'Application not found', 404); return; }
-  if (application.status !== 'payment_pending') { sendError(res, 'Payment is not required at this stage'); return; }
+  if (!['submitted', 'payment_pending'].includes(application.status)) { sendError(res, 'Payment is not required at this stage'); return; }
 
   const transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 

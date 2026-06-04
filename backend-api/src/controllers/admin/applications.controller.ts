@@ -1,4 +1,7 @@
 import { Response } from 'express';
+import https from 'https';
+import http from 'http';
+import archiver from 'archiver';
 import { AdminRequest } from '../../middleware/adminAuth.middleware';
 import Application, { ApplicationStatus, STATUS_LABELS } from '../../models/Application';
 import Document from '../../models/Document';
@@ -9,6 +12,20 @@ import Payment from '../../models/Payment';
 import { uploadToCloudinary } from '../../services/cloudinary.service';
 import { sendDocumentStatusEmail, sendStatusUpdateEmail, sendVisaDeliveredEmail } from '../../services/email.service';
 import { sendSuccess, sendError } from '../../utils/response';
+
+async function fetchBuffer(url: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const protocol = url.startsWith('https://') ? https : http;
+    const chunks: Buffer[] = [];
+    const req = protocol.get(url, (res) => {
+      if (res.statusCode !== 200) { res.resume(); reject(new Error(`HTTP ${res.statusCode}`)); return; }
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+  });
+}
 
 export const getApplications = async (req: AdminRequest, res: Response): Promise<void> => {
   const { status, country, page = '1', limit = '20' } = req.query;
@@ -105,7 +122,7 @@ export const approveAllDocuments = async (req: AdminRequest, res: Response): Pro
   await Document.updateMany({ application: application._id, status: 'pending' }, { status: 'approved', reviewedAt: new Date() });
 
   const visaType = await (await import('../../models/VisaType')).default.findById(application.visaType);
-  application.status = 'payment_pending';
+  application.status = 'documents_approved';
   application.paymentAmount = visaType?.price || 0;
   await application.save();
 
@@ -113,7 +130,7 @@ export const approveAllDocuments = async (req: AdminRequest, res: Response): Pro
   const notif = await Notification.create({
     user: application.user,
     title: 'Documents Approved',
-    message: `Your documents for application ${application.referenceId} have been approved. Please proceed with payment.`,
+    message: `Your documents for application ${application.referenceId} have been reviewed and approved.`,
     type: 'document_approved',
     application: application._id,
   });
@@ -129,7 +146,7 @@ export const approveAllDocuments = async (req: AdminRequest, res: Response): Pro
     await sendDocumentStatusEmail(user.email, user.name, 'approved', undefined, application.referenceId);
   } catch (err) { console.error(err); }
 
-  sendSuccess(res, application, 'All documents approved, payment requested');
+  sendSuccess(res, application, 'All documents approved');
 };
 
 export const updateStatus = async (req: AdminRequest, res: Response): Promise<void> => {
@@ -214,7 +231,7 @@ export const manualPaymentOverride = async (req: AdminRequest, res: Response): P
 
   const application = await Application.findById(req.params.id).populate('user', 'name email');
   if (!application) { sendError(res, 'Application not found', 404); return; }
-  if (application.status !== 'payment_pending') {
+  if (!['payment_pending', 'submitted'].includes(application.status)) {
     sendError(res, 'Application is not awaiting payment'); return;
   }
 
@@ -278,4 +295,42 @@ export const getUserApplications = async (req: AdminRequest, res: Response): Pro
     .populate('country', 'name flag')
     .sort({ createdAt: -1 });
   sendSuccess(res, applications);
+};
+
+export const downloadApplicationDocumentsZip = async (req: AdminRequest, res: Response): Promise<void> => {
+  const docs = await Document.find({ application: req.params.id });
+
+  if (docs.length === 0) {
+    sendError(res, 'No documents found for this application', 404);
+    return;
+  }
+
+  const application = await Application.findById(req.params.id).populate('visaType', 'name');
+  const appRef = (application as any)?.referenceId || req.params.id;
+
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="docs-${appRef}.zip"`);
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+
+  const archive = archiver('zip', { zlib: { level: 6 } });
+  const closePromise = new Promise<void>((resolve, reject) => {
+    archive.on('close', resolve);
+    archive.on('error', reject);
+  });
+  archive.pipe(res);
+
+  for (const doc of docs) {
+    try {
+      const buffer = await fetchBuffer(doc.url);
+      const urlPath = doc.url.split('?')[0];
+      const ext = urlPath.split('.').pop() || 'bin';
+      const safeName = doc.requirementName.replace(/[^a-zA-Z0-9\-_]/g, '_');
+      archive.append(buffer, { name: `${safeName}.${ext}` });
+    } catch (err) {
+      console.error(`Skipping doc ${doc._id}:`, err);
+    }
+  }
+
+  archive.finalize();
+  await closePromise;
 };

@@ -45,7 +45,7 @@ export default function VisaTypesPage() {
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
   const [form, setForm] = useState({
-    country: '', name: '', description: '', price: '', processingDays: '',
+    country: '', name: '', description: '', price: '', processingDays: '', validity: '',
     formFields: [] as FormField[],
     documentRequirements: [] as DocumentRequirement[],
   });
@@ -122,6 +122,7 @@ export default function VisaTypesPage() {
       description: vt.description,
       price: String(vt.price),
       processingDays: String(vt.processingDays),
+      validity: vt.validity || '',
       formFields: vt.formFields || [],
       documentRequirements: vt.documentRequirements || [],
     });
@@ -137,7 +138,7 @@ export default function VisaTypesPage() {
           <h1 className="text-2xl font-bold text-slate-900">Visa Types</h1>
           <p className="text-slate-500 text-sm mt-1">Manage visa types and their dynamic form fields.</p>
         </div>
-        <Button onClick={() => { setForm({ country: '', name: '', description: '', price: '', processingDays: '', formFields: [], documentRequirements: [] }); setEditId(null); setShowForm(!showForm); }}>
+        <Button onClick={() => { setForm({ country: '', name: '', description: '', price: '', processingDays: '', validity: '', formFields: [], documentRequirements: [] }); setEditId(null); setShowForm(!showForm); }}>
           <Plus className="w-4 h-4 mr-2" /> Add Visa Type
         </Button>
       </div>
@@ -160,16 +161,20 @@ export default function VisaTypesPage() {
                   <Input className="mt-1" placeholder="e.g. Tourist Visa" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
                 </div>
                 <div>
-                  <Label>Description</Label>
-                  <Input className="mt-1" placeholder="Short description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                  <Label>Visa Category</Label>
+                  <Input className="mt-1" placeholder="e.g. Tourist, Business" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 </div>
                 <div>
                   <Label>Price (USD)</Label>
                   <Input className="mt-1" type="number" min="0" placeholder="e.g. 150" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />
                 </div>
                 <div>
-                  <Label>Processing Days</Label>
+                  <Label>Business Days</Label>
                   <Input className="mt-1" type="number" min="1" placeholder="e.g. 15" value={form.processingDays} onChange={(e) => setForm({ ...form, processingDays: e.target.value })} required />
+                </div>
+                <div>
+                  <Label>Validity</Label>
+                  <Input className="mt-1" placeholder="e.g. 30 days, 1 year" value={form.validity} onChange={(e) => setForm({ ...form, validity: e.target.value })} />
                 </div>
               </div>
 
@@ -267,14 +272,14 @@ export default function VisaTypesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
-              {['Visa Type', 'Country', 'Price', 'Processing', 'Fields', 'Documents', 'Status', ''].map((h) => (
+              {['Visa Type', 'Country', 'Price', 'Business Days', 'Validity', 'Fields', 'Documents', 'Status', ''].map((h) => (
                 <th key={h} className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {visaTypes.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400">No visa types. Create one above.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-10 text-center text-slate-400">No visa types. Create one above.</td></tr>
             ) : (
               visaTypes.map((vt) => (
                 <tr key={vt._id} className={`hover:bg-slate-50 ${!vt.isActive ? 'opacity-60' : ''}`}>
@@ -290,6 +295,7 @@ export default function VisaTypesPage() {
                   </td>
                   <td className="px-4 py-3 font-bold text-blue-700">{formatCurrency(vt.price)}</td>
                   <td className="px-4 py-3 text-slate-500">{vt.processingDays} days</td>
+                  <td className="px-4 py-3 text-slate-500">{vt.validity || '—'}</td>
                   <td className="px-4 py-3"><Badge variant="secondary">{vt.formFields?.length || 0} fields</Badge></td>
                   <td className="px-4 py-3"><Badge variant="secondary">{vt.documentRequirements?.length || 0} docs</Badge></td>
                   <td className="px-4 py-3">

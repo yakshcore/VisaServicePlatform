@@ -54,6 +54,8 @@ export const getApplication = (id: string) => api.get(`/admin/applications/${id}
 export const updateStatus = (id: string, data: object) => api.put(`/admin/applications/${id}/status`, data);
 export const reviewDocument = (id: string, data: object) => api.put(`/admin/applications/${id}/document-review`, data);
 export const approveAllDocuments = (id: string) => api.put(`/admin/applications/${id}/approve-documents`);
+export const downloadApplicationDocumentsZip = (id: string) =>
+  api.get(`/admin/applications/${id}/documents/zip`, { responseType: 'blob' });
 export const uploadVisaFile = (id: string, formData: FormData) =>
   api.post(`/admin/applications/${id}/visa-file`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -67,6 +69,9 @@ export const getAdminPayments = () => api.get('/admin/payments');
 // Users
 export const getUsers = () => api.get('/admin/users');
 export const getUserApplications = (userId: string) => api.get(`/admin/users/${userId}/applications`);
+export const getUserVaultDocuments = (userId: string) => api.get(`/admin/users/${userId}/vault`);
+export const downloadUserVaultZip = (userId: string) =>
+  api.get(`/admin/users/${userId}/vault/zip`, { responseType: 'blob' });
 
 // Contact Leads
 export const getLeads = () => api.get('/admin/leads');
