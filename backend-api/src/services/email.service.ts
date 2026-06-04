@@ -1,6 +1,6 @@
-import { transporter, MAIL_FROM } from '../config/email';
+import * as Brevo from '@getbrevo/brevo';
+import { emailApi, MAIL_FROM_NAME, MAIL_FROM_EMAIL } from '../config/email';
 
-const adminUrl = process.env.ADMIN_URL || 'http://localhost:3001';
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 const baseStyle = `
@@ -31,16 +31,21 @@ const footer = () => `
 
 async function sendMail(to: string, subject: string, html: string, label: string): Promise<void> {
   console.log(`[EMAIL:${label}] Preparing to send → ${to} | Subject: "${subject}"`);
+
+  const email = new Brevo.SendSmtpEmail();
+  email.sender = { name: MAIL_FROM_NAME, email: MAIL_FROM_EMAIL };
+  email.to = [{ email: to }];
+  email.subject = subject;
+  email.htmlContent = html;
+
   try {
-    const info = await transporter.sendMail({ from: MAIL_FROM, to, subject, html });
-    console.log(`[EMAIL:${label}] Sent successfully → messageId: ${info.messageId} | accepted: [${info.accepted}] | rejected: [${info.rejected}]`);
-    if (info.rejected?.length) {
-      console.warn(`[EMAIL:${label}] Address rejected by server: ${info.rejected.join(', ')}`);
-    }
+    const { body } = await emailApi.sendTransacEmail(email);
+    console.log(`[EMAIL:${label}] Sent successfully → messageId: ${body.messageId}`);
   } catch (err: any) {
+    const status = err?.response?.statusCode;
+    const detail = err?.response?.body?.message ?? err?.message ?? err;
     console.error(`[EMAIL:${label}] FAILED for ${to}`);
-    console.error(`[EMAIL:${label}] Error code: ${err?.code} | Response: ${err?.response}`);
-    console.error(`[EMAIL:${label}] Full error:`, err?.message ?? err);
+    console.error(`[EMAIL:${label}] Status: ${status} | Detail: ${detail}`);
     throw err;
   }
 }
@@ -79,8 +84,8 @@ export async function sendDocumentStatusEmail(
   reason?: string,
   referenceId?: string
 ): Promise<void> {
-  const isApproved = status === 'approved';
   console.log(`[DOC_STATUS] Sending document ${status} email → ${email} | ref: ${referenceId}`);
+  const isApproved = status === 'approved';
   await sendMail(
     email,
     isApproved ? 'Documents Approved - Proceed to Payment' : 'Document Revision Required',

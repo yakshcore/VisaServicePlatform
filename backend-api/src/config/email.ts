@@ -1,31 +1,24 @@
-import nodemailer from 'nodemailer';
+import * as Brevo from '@getbrevo/brevo';
 
-const port = parseInt(process.env.SMTP_PORT || '587', 10);
-const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+export const emailApi = new Brevo.TransactionalEmailsApi();
+emailApi.setApiKey(
+  Brevo.TransactionalEmailsApiApiKeys.apiKey,
+  process.env.BREVO_API_KEY!
+);
 
-export const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-  port,
-  secure,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
-export const MAIL_FROM = process.env.EMAIL_FROM || `Pravasa Transworld <${process.env.SMTP_USER}>`;
+export const MAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'Pravasa Transworld';
+export const MAIL_FROM_EMAIL = process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER || '';
 
 export async function verifyMailConnection(): Promise<void> {
-  const host = process.env.SMTP_HOST || 'smtp-relay.brevo.com';
-  console.log('[EMAIL] Verifying SMTP connection...');
-  console.log(`[EMAIL] Host: ${host} | Port: ${port} | Secure: ${secure}`);
-  console.log(`[EMAIL] User: ${process.env.SMTP_USER || '(not set)'}`);
+  console.log('[EMAIL] Verifying Brevo API connection...');
+  console.log(`[EMAIL] From: ${MAIL_FROM_NAME} <${MAIL_FROM_EMAIL}>`);
   try {
-    await transporter.verify();
-    console.log('[EMAIL] SMTP connection verified successfully.');
+    const accountApi = new Brevo.AccountApi();
+    accountApi.setApiKey(Brevo.AccountApiApiKeys.apiKey, process.env.BREVO_API_KEY!);
+    const { body } = await accountApi.getAccount();
+    console.log(`[EMAIL] Brevo connected — account: ${body.email} | plan: ${body.plan?.[0]?.type}`);
   } catch (err: any) {
-    console.error('[EMAIL] SMTP verification FAILED:', err?.message ?? err);
-    console.error('[EMAIL] Code:', err?.code, '| Response:', err?.response ?? 'none');
-    console.error('[EMAIL] Check SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS in your env.');
+    console.error('[EMAIL] Brevo API verification FAILED:', err?.message ?? err);
+    console.error('[EMAIL] Check BREVO_API_KEY in your env.');
   }
 }
