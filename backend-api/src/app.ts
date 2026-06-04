@@ -14,6 +14,10 @@ app.set('trust proxy', 1);
 
 // ── CORS ────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://pravasatransworld.com',
+  'https://www.pravasatransworld.com',
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
   ...(process.env.ADMIN_URL ? [process.env.ADMIN_URL] : []),
 ];
