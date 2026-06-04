@@ -1,6 +1,5 @@
-﻿import { createTransporter } from '../config/email';
+import { resend, EMAIL_FROM } from '../config/email';
 
-const from = process.env.EMAIL_FROM || 'Pravasa Transworld <noreply@pravasatransworld.com>';
 const adminUrl = process.env.ADMIN_URL || 'http://localhost:3001';
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
@@ -31,9 +30,8 @@ const footer = () => `
 `;
 
 export async function sendOTPEmail(email: string, name: string, otp: string): Promise<void> {
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from,
+  await resend.emails.send({
+    from: EMAIL_FROM,
     to: email,
     subject: 'Your Pravasa Transworld Login OTP',
     html: `
@@ -64,10 +62,9 @@ export async function sendDocumentStatusEmail(
   reason?: string,
   referenceId?: string
 ): Promise<void> {
-  const transporter = createTransporter();
   const isApproved = status === 'approved';
-  await transporter.sendMail({
-    from,
+  await resend.emails.send({
+    from: EMAIL_FROM,
     to: email,
     subject: isApproved ? 'Documents Approved - Proceed to Payment' : 'Document Revision Required',
     html: `
@@ -109,9 +106,8 @@ export async function sendStatusUpdateEmail(
   statusLabel: string,
   referenceId: string
 ): Promise<void> {
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from,
+  await resend.emails.send({
+    from: EMAIL_FROM,
     to: email,
     subject: `Application Update: ${statusLabel}`,
     html: `
@@ -141,9 +137,8 @@ export async function sendVisaDeliveredEmail(
   referenceId: string,
   downloadUrl: string
 ): Promise<void> {
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from,
+  await resend.emails.send({
+    from: EMAIL_FROM,
     to: email,
     subject: 'Your Visa is Ready for Download!',
     html: `
