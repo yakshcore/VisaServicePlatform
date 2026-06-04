@@ -1,5 +1,6 @@
 ﻿import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import morgan from 'morgan';
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss';
@@ -27,6 +28,9 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+// ── Request Logging (Morgan) ─────────────────────────────────────────────────
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ── HTTP Security Headers (Helmet) ──────────────────────────────────────────
 // Disabled contentSecurityPolicy for a JSON API — CSP is a browser/HTML concern.
