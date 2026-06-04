@@ -97,10 +97,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     if (isAuthenticated && token) {
       fetchNotifications();
 
-      const socketInstance = io(
-        process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000',
-        { auth: { token } }
-      );
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const socketUrl = apiUrl.startsWith('http') ? new URL(apiUrl).origin : apiUrl;
+      
+      const socketInstance = io(socketUrl, {
+        auth: { token }
+      });
 
       socketInstance.on('notification', (newNotif) => {
         setNotifications((prev) => [newNotif, ...prev]);
