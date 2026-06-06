@@ -284,8 +284,10 @@ export const getAdminPayments = async (_req: AdminRequest, res: Response): Promi
   sendSuccess(res, payments);
 };
 
-export const getUsers = async (_req: AdminRequest, res: Response): Promise<void> => {
-  const users = await User.find().sort({ createdAt: -1 });
+export const getUsers = async (req: AdminRequest, res: Response): Promise<void> => {
+  const filter: Record<string, unknown> = {};
+  if (req.query.accountType) filter.accountType = req.query.accountType;
+  const users = await User.find(filter).sort({ createdAt: -1 });
   sendSuccess(res, users);
 };
 

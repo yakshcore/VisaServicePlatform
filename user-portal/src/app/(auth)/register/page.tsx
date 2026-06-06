@@ -2,13 +2,15 @@
 import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Globe, ArrowLeft, Loader2 } from 'lucide-react';
+import { Globe, ArrowLeft, Loader2, User, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
-import { sendLoginOTP, verifyOTP } from '@/lib/api';
+import { sendOTP, verifyOTP } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
+
+type AccountType = 'individual' | 'corporate';
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 30;
@@ -66,7 +68,7 @@ function OtpBoxes({ value, onChange }: { value: string[]; onChange: (v: string[]
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
           onFocus={(e) => e.target.select()}
-          className="w-11 h-13 text-center text-xl font-bold rounded-xl border-2 border-slate-200 bg-slate-50 focus:border-blue-500 focus:bg-white focus:outline-none transition-all"
+          className="w-11 text-center text-xl font-bold rounded-xl border-2 border-slate-200 bg-slate-50 focus:border-blue-500 focus:bg-white focus:outline-none transition-all"
           style={{ height: '3.25rem' }}
         />
       ))}
@@ -92,21 +94,39 @@ function useResendTimer() {
   return { seconds, start };
 }
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const { login } = useAuthStore();
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [form, setForm] = useState({ email: '', phone: '' });
+  const [accountType, setAccountType] = useState<AccountType>('individual');
+  const [form, setForm] = useState({ name: '', email: '', phone: '', gstNumber: '' });
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const { seconds, start: startTimer } = useResendTimer();
 
+  const switchTab = (type: AccountType) => {
+    setAccountType(type);
+    setForm({ name: '', email: '', phone: '', gstNumber: '' });
+    setTermsAccepted(false);
+  };
+
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!termsAccepted) {
+      toast({ title: 'Terms required', description: 'Please accept the Terms & Conditions to continue.', variant: 'destructive' });
+      return;
+    }
     setLoading(true);
     try {
-      await sendLoginOTP({ email: form.email, phone: form.phone });
+      await sendOTP({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        accountType,
+        gstNumber: accountType === 'corporate' ? form.gstNumber : undefined,
+      });
       setStep('otp');
       startTimer();
       toast({ title: 'OTP Sent', description: 'Check your email for the 6-digit code.', variant: 'success' });
@@ -120,7 +140,13 @@ export default function LoginPage() {
   const handleResend = async () => {
     setResending(true);
     try {
-      await sendLoginOTP({ email: form.email, phone: form.phone });
+      await sendOTP({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        accountType,
+        gstNumber: accountType === 'corporate' ? form.gstNumber : undefined,
+      });
       setOtpDigits(Array(OTP_LENGTH).fill(''));
       startTimer();
       toast({ title: 'OTP Resent', description: 'A new code has been sent to your email.', variant: 'success' });
@@ -140,7 +166,7 @@ export default function LoginPage() {
       const res = await verifyOTP({ email: form.email, otp });
       const { token, user } = res.data.data;
       login(user, token);
-      toast({ title: 'Welcome back!', description: `Logged in as ${user.name}`, variant: 'success' });
+      toast({ title: 'Account created!', description: `Welcome, ${user.name}`, variant: 'success' });
       router.push('/dashboard');
     } catch (err: any) {
       toast({ title: 'Invalid OTP', description: err.response?.data?.message || 'Please check the code and try again.', variant: 'destructive' });
@@ -163,58 +189,135 @@ export default function LoginPage() {
             <span className="text-2xl font-bold text-slate-900">Pravasa Transworld</span>
           </Link>
           <h1 className="text-2xl font-bold text-slate-900">
-            {step === 'form' ? 'Welcome back' : 'Check your email'}
+            {step === 'form' ? 'Create your account' : 'Verify your email'}
           </h1>
           <p className="text-slate-500 text-sm mt-2">
             {step === 'form'
-              ? 'Enter your email and phone to receive a login code.'
+              ? 'Fill in your details to get started.'
               : `We sent a 6-digit code to ${form.email}`}
           </p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
           {step === 'form' ? (
-            <form onSubmit={handleSendOTP} className="space-y-5">
-              <div>
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  className="mt-1"
-                  placeholder="you@email.com"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  required
-                />
+            <>
+              {/* Account type tabs */}
+              <div className="flex rounded-xl border border-slate-200 p-1 mb-6 bg-slate-50">
+                <button
+                  type="button"
+                  onClick={() => switchTab('individual')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    accountType === 'individual'
+                      ? 'bg-white text-blue-700 shadow-sm border border-slate-200'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  Individual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchTab('corporate')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    accountType === 'corporate'
+                      ? 'bg-white text-blue-700 shadow-sm border border-slate-200'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  <Building2 className="w-4 h-4" />
+                  Corporate
+                </button>
               </div>
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  className="mt-1"
-                  placeholder="+1 234 567 890"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send OTP'}
-              </Button>
-              <p className="text-center text-sm text-slate-500">
-                Don&apos;t have an account?{' '}
-                <Link href="/register" className="text-blue-600 font-semibold hover:underline">
-                  Register here
-                </Link>
-              </p>
-            </form>
+
+              <form onSubmit={handleSendOTP} className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    className="mt-1"
+                    placeholder="John Doe"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    className="mt-1"
+                    placeholder="you@email.com"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    className="mt-1"
+                    placeholder="+1 234 567 890"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    required
+                  />
+                </div>
+
+                {accountType === 'corporate' && (
+                  <div>
+                    <Label htmlFor="gst">GST Number</Label>
+                    <Input
+                      id="gst"
+                      className="mt-1"
+                      placeholder="22AAAAA0000A1Z5"
+                      value={form.gstNumber}
+                      onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-start gap-3 pt-1">
+                  <input
+                    id="terms"
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <label htmlFor="terms" className="text-sm text-slate-600 leading-relaxed cursor-pointer">
+                    I agree to the{' '}
+                    <Link href="/terms" target="_blank" className="text-blue-600 underline hover:text-blue-700">
+                      Terms & Conditions
+                    </Link>{' '}
+                    and{' '}
+                    <Link href="/privacy" target="_blank" className="text-blue-600 underline hover:text-blue-700">
+                      Privacy Policy
+                    </Link>
+                  </label>
+                </div>
+
+                <Button type="submit" className="w-full" size="lg" disabled={loading || !termsAccepted}>
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Account'}
+                </Button>
+
+                <p className="text-center text-sm text-slate-500">
+                  Already have an account?{' '}
+                  <Link href="/login" className="text-blue-600 font-semibold hover:underline">
+                    Sign in
+                  </Link>
+                </p>
+              </form>
+            </>
           ) : (
             <form onSubmit={handleVerifyOTP} className="space-y-6">
               <OtpBoxes value={otpDigits} onChange={setOtpDigits} />
 
               <Button type="submit" className="w-full" size="lg" disabled={loading || !otpFilled}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Verify & Sign In'}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Verify & Create Account'}
               </Button>
 
               <div className="flex items-center justify-between text-sm">
@@ -223,7 +326,7 @@ export default function LoginPage() {
                   onClick={() => { setStep('form'); setOtpDigits(Array(OTP_LENGTH).fill('')); }}
                   className="flex items-center gap-1 text-slate-500 hover:text-slate-900"
                 >
-                  <ArrowLeft className="w-3.5 h-3.5" /> Change details
+                  <ArrowLeft className="w-3.5 h-3.5" /> Edit details
                 </button>
                 {seconds > 0 ? (
                   <span className="text-slate-400">Resend in {seconds}s</span>

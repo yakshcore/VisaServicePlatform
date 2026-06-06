@@ -6,6 +6,8 @@ interface User {
   name: string;
   email: string;
   phone: string;
+  accountType?: 'individual' | 'corporate';
+  gstNumber?: string;
 }
 
 interface AuthState {

@@ -61,7 +61,7 @@ export default function Navbar() {
               asChild
               className="bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/10 border-0 font-semibold"
             >
-              <Link href="/login">Apply For Visa</Link>
+              <Link href="/register">Get Started</Link>
             </Button>
           </div>
 
@@ -91,7 +91,7 @@ export default function Navbar() {
               <Link href="/login">Sign In</Link>
             </Button>
             <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold" asChild>
-              <Link href="/login">Apply For Visa</Link>
+              <Link href="/register">Get Started</Link>
             </Button>
           </div>
         </div>

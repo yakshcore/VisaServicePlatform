@@ -47,6 +47,8 @@ export const createVisaType = (data: object) => api.post('/admin/visa-types', da
 export const updateVisaType = (id: string, data: object) => api.put(`/admin/visa-types/${id}`, data);
 export const deleteVisaType = (id: string) => api.delete(`/admin/visa-types/${id}`);
 export const toggleVisaType = (id: string) => api.patch(`/admin/visa-types/${id}/toggle`);
+export const updateCorporatePrice = (id: string, corporatePrice: number | '') =>
+  api.patch(`/admin/visa-types/${id}/corporate-price`, { corporatePrice });
 
 // Applications
 export const getApplications = (params?: object) => api.get('/admin/applications', { params });

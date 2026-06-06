@@ -25,6 +25,7 @@ export interface IVisaType extends Document {
   name: string;
   description: string;
   price: number;
+  corporatePrice?: number;
   processingDays: number;
   validity: string;
   formFields: IFormField[];
@@ -54,6 +55,7 @@ const VisaTypeSchema = new Schema<IVisaType>(
     name: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
     price: { type: Number, required: true, min: 0 },
+    corporatePrice: { type: Number, min: 0 },
     processingDays: { type: Number, required: true, min: 1 },
     validity: { type: String, default: '' },
     formFields: [FormFieldSchema],

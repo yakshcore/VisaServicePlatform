@@ -23,6 +23,7 @@ router.patch('/countries/:id/toggle', countries.toggleCountryStatus);
 router.route('/visa-types').get(visaTypes.getVisaTypes).post(visaTypes.createVisaType);
 router.route('/visa-types/:id').get(visaTypes.getVisaType).put(visaTypes.updateVisaType).delete(visaTypes.deleteVisaType);
 router.patch('/visa-types/:id/toggle', visaTypes.toggleVisaTypeStatus);
+router.patch('/visa-types/:id/corporate-price', visaTypes.updateCorporatePrice);
 
 // Applications
 router.get('/applications', apps.getApplications);

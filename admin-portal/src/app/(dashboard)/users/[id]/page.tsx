@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Mail, Phone, Calendar, FileText, ExternalLink, FolderArchive, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, FileText, ExternalLink, FolderArchive, Download, Loader2, Building2, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -100,8 +100,8 @@ export default function CustomerProfilePage() {
       {/* Profile Header */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
         <div className="flex items-start gap-5">
-          <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-blue-700 text-2xl font-bold">{user.name?.[0]?.toUpperCase()}</span>
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0 ${user.accountType === 'corporate' ? 'bg-amber-100' : 'bg-blue-100'}`}>
+            <span className={`text-2xl font-bold ${user.accountType === 'corporate' ? 'text-amber-700' : 'text-blue-700'}`}>{user.name?.[0]?.toUpperCase()}</span>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
@@ -109,11 +109,25 @@ export default function CustomerProfilePage() {
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                 {user.isActive ? 'Active' : 'Inactive'}
               </span>
+              {user.accountType === 'corporate' ? (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">
+                  <Building2 className="w-3 h-3" /> Corporate
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">
+                  <User className="w-3 h-3" /> Individual
+                </span>
+              )}
             </div>
             <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-500">
               <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{user.email}</span>
               <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{user.phone}</span>
               <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />Joined {formatDate(user.createdAt)}</span>
+              {user.accountType === 'corporate' && user.gstNumber && (
+                <span className="flex items-center gap-1.5 font-mono text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md border border-amber-200">
+                  GST: {user.gstNumber}
+                </span>
+              )}
             </div>
           </div>
         </div>

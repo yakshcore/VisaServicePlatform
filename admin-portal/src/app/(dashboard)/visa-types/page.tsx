@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
-import { getCountries, getVisaTypes, createVisaType, updateVisaType, deleteVisaType, toggleVisaType } from '@/lib/api';
+import { getCountries, getVisaTypes, createVisaType, updateVisaType, deleteVisaType, toggleVisaType, updateCorporatePrice } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import type { Country, VisaType, FormField, DocumentRequirement, FieldType } from '@/types';
 
@@ -98,6 +98,9 @@ export default function VisaTypesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [corpPriceEdit, setCorpPriceEdit] = useState<string | null>(null);
+  const [corpPriceDraft, setCorpPriceDraft] = useState('');
+  const [savingCorpPrice, setSavingCorpPrice] = useState(false);
   const [form, setForm] = useState({
     country: '', name: '', description: '', price: '', processingDays: '', validity: '',
     formFields: [] as FormField[],
@@ -168,6 +171,21 @@ export default function VisaTypesPage() {
   const removeDocReq = (i: number) => setForm((f) => ({ ...f, documentRequirements: f.documentRequirements.filter((_, idx) => idx !== i) }));
   const updateDocReq = (i: number, key: keyof DocumentRequirement, value: any) =>
     setForm((f) => ({ ...f, documentRequirements: f.documentRequirements.map((d, idx) => idx === i ? { ...d, [key]: value } : d) }));
+
+  const handleSaveCorpPrice = async (id: string) => {
+    setSavingCorpPrice(true);
+    try {
+      const price = corpPriceDraft === '' ? '' : Number(corpPriceDraft);
+      await updateCorporatePrice(id, price as number | '');
+      setVisaTypes((prev) => prev.map((vt) => vt._id === id ? { ...vt, corporatePrice: price === '' ? undefined : Number(price) } : vt));
+      toast({ title: 'Corporate price updated', variant: 'success' });
+    } catch {
+      toast({ title: 'Failed to update corporate price', variant: 'destructive' });
+    } finally {
+      setSavingCorpPrice(false);
+      setCorpPriceEdit(null);
+    }
+  };
 
   const startEdit = (vt: VisaType) => {
     setForm({
@@ -330,14 +348,14 @@ export default function VisaTypesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
-              {['Visa Type', 'Country', 'Price', 'Business Days', 'Validity', 'Fields', 'Documents', 'Status', ''].map((h) => (
+              {['Visa Type', 'Country', 'Price', 'Corporate Price', 'Business Days', 'Validity', 'Fields', 'Documents', 'Status', ''].map((h) => (
                 <th key={h} className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {visaTypes.length === 0 ? (
-              <tr><td colSpan={9} className="px-4 py-10 text-center text-slate-400">No visa types. Create one above.</td></tr>
+              <tr><td colSpan={10} className="px-4 py-10 text-center text-slate-400">No visa types. Create one above.</td></tr>
             ) : (
               visaTypes.map((vt) => (
                 <tr key={vt._id} className={`hover:bg-slate-50 ${!vt.isActive ? 'opacity-60' : ''}`}>
@@ -352,6 +370,44 @@ export default function VisaTypesPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 font-bold text-blue-700">{formatCurrency(vt.price)}</td>
+                  <td className="px-4 py-3">
+                    {corpPriceEdit === vt._id ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          className="h-7 w-24 text-xs"
+                          placeholder="e.g. 120"
+                          value={corpPriceDraft}
+                          onChange={(e) => setCorpPriceDraft(e.target.value)}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveCorpPrice(vt._id);
+                            if (e.key === 'Escape') setCorpPriceEdit(null);
+                          }}
+                        />
+                        <button
+                          onClick={() => handleSaveCorpPrice(vt._id)}
+                          disabled={savingCorpPrice}
+                          className="text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {savingCorpPrice ? '…' : 'Save'}
+                        </button>
+                        <button onClick={() => setCorpPriceEdit(null)} className="text-xs text-slate-400 hover:text-slate-600">✕</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setCorpPriceEdit(vt._id); setCorpPriceDraft(vt.corporatePrice != null ? String(vt.corporatePrice) : ''); }}
+                        className="flex items-center gap-1 group"
+                        title="Set corporate price"
+                      >
+                        <span className={`font-semibold ${vt.corporatePrice != null ? 'text-amber-700' : 'text-slate-300'}`}>
+                          {vt.corporatePrice != null ? formatCurrency(vt.corporatePrice) : '—'}
+                        </span>
+                        <Pencil className="w-3 h-3 text-slate-300 group-hover:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-slate-500">{vt.processingDays} days</td>
                   <td className="px-4 py-3 text-slate-500">{vt.validity || '—'}</td>
                   <td className="px-4 py-3"><Badge variant="secondary">{vt.formFields?.length || 0} fields</Badge></td>

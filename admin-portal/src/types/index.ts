@@ -63,6 +63,7 @@ export interface VisaType {
   name: string;
   description: string;
   price: number;
+  corporatePrice?: number;
   processingDays: number;
   validity: string;
   formFields: FormField[];
@@ -84,6 +85,8 @@ export interface User {
   name: string;
   email: string;
   phone: string;
+  accountType: 'individual' | 'corporate';
+  gstNumber?: string;
   isActive: boolean;
   createdAt: string;
 }

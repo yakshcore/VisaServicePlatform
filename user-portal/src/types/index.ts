@@ -36,6 +36,7 @@ export interface VisaType {
   name: string;
   description: string;
   price: number;
+  corporatePrice?: number;
   processingDays: number;
   validity?: string;
   formFields: FormField[];
