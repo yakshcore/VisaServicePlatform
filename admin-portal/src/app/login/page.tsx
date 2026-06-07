@@ -1,31 +1,59 @@
-﻿'use client';
+'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Loader2 } from 'lucide-react';
+import { Shield, Loader2, ArrowLeft, Mail, Phone, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
-import { adminLogin } from '@/lib/api';
+import { sendAdminOtp, verifyAdminOtp } from '@/lib/api';
 import { useAdminAuthStore } from '@/store/auth.store';
+
+type Step = 'credentials' | 'otp';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const { login } = useAdminAuthStore();
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ email: '', password: '' });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const [step, setStep] = useState<Step>('credentials');
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const r = await adminLogin(form);
+      await sendAdminOtp({ email: email.trim(), phone: phone.trim() });
+      toast({ title: 'OTP sent', description: `A 6-digit code was sent to ${email}`, variant: 'success' });
+      setStep('otp');
+    } catch (err: any) {
+      toast({
+        title: 'Failed to send OTP',
+        description: err.response?.data?.message || 'Check your email and phone number.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const r = await verifyAdminOtp({ email: email.trim(), otp: otp.trim() });
       const { token, admin } = r.data.data;
       login(admin, token);
       toast({ title: 'Welcome back!', description: `Logged in as ${admin.name}`, variant: 'success' });
       router.push('/dashboard');
     } catch (err: any) {
-      toast({ title: 'Login failed', description: err.response?.data?.message || 'Invalid credentials', variant: 'destructive' });
+      toast({
+        title: 'Verification failed',
+        description: err.response?.data?.message || 'Invalid or expired OTP.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -43,38 +71,87 @@ export default function AdminLoginPage() {
         </div>
 
         <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="email" className="text-slate-300">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                className="mt-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-                placeholder="admin@pravasatransworld.com"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="password" className="text-slate-300">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                className="mt-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-                placeholder="••••••••"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sign In'}
-            </Button>
-          </form>
+          {step === 'credentials' ? (
+            <form onSubmit={handleSendOtp} className="space-y-4">
+              <div>
+                <Label htmlFor="email" className="text-slate-300 flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5" /> Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  className="mt-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                  placeholder="admin@pravasatransworld.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="phone" className="text-slate-300 flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5" /> Phone number
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  className="mt-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                  placeholder="+91 98765 43210"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send OTP'}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div className="text-center mb-2">
+                <div className="w-10 h-10 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <KeyRound className="w-5 h-5 text-blue-400" />
+                </div>
+                <p className="text-slate-300 text-sm">
+                  Enter the 6-digit OTP sent to
+                </p>
+                <p className="text-white font-medium text-sm truncate">{email}</p>
+              </div>
+
+              <div>
+                <Label htmlFor="otp" className="text-slate-300">One-time password</Label>
+                <Input
+                  id="otp"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  className="mt-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 text-center text-xl tracking-[0.4em] font-mono"
+                  placeholder="000000"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  required
+                />
+              </div>
+
+              <Button type="submit" className="w-full" size="lg" disabled={loading || otp.length < 6}>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Verify & Sign In'}
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => { setStep('credentials'); setOtp(''); }}
+                className="flex items-center gap-1 text-sm text-slate-400 hover:text-slate-200 transition-colors mx-auto"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Back
+              </button>
+            </form>
+          )}
         </div>
+
         <p className="text-center text-xs text-slate-500 mt-4">
-          Default: admin@pravasatransworld.com / Admin@123
+          Passwordless login — OTP delivered to registered admin email
         </p>
       </div>
     </div>

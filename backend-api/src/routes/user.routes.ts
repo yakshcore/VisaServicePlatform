@@ -5,9 +5,15 @@ import * as apps from '../controllers/user/applications.controller';
 import * as notifs from '../controllers/user/notifications.controller';
 import * as vault from '../controllers/user/documentVault.controller';
 import * as payments from '../controllers/user/payments.controller';
+import * as profile from '../controllers/user/profile.controller';
 
 const router = Router();
 router.use(protect);
+
+// Profile
+router.get('/profile', profile.getProfile);
+router.put('/profile', profile.updateProfile);
+router.post('/profile/photo', upload.single('file'), profile.uploadProfilePhoto);
 
 // Dashboard
 router.get('/dashboard', apps.getDashboard);

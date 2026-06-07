@@ -75,7 +75,8 @@ ApplicationSchema.plugin(encryptionPlugin, { fields: ['formResponses'] });
 
 ApplicationSchema.pre('save', function (next) {
   if (!this.referenceId) {
-    this.referenceId = `VF-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+    const num = String(Math.floor(1000 + Math.random() * 9000));
+    this.referenceId = `PRS-GEN-${num}`;
   }
   next();
 });

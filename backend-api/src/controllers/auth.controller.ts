@@ -40,10 +40,10 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
   }
 
   const otp = generateOTP();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-  await OTP.deleteMany({ email: email.toLowerCase() });
-  await OTP.create({ email: email.toLowerCase(), otp, expiresAt });
+  await OTP.deleteMany({ email: email.toLowerCase(), role: 'user' });
+  await OTP.create({ email: email.toLowerCase(), otp, role: 'user', expiresAt });
 
   try {
     await sendOTPEmail(email, name, otp);
@@ -77,8 +77,8 @@ export const sendLoginOtp = async (req: Request, res: Response): Promise<void> =
   const otp = generateOTP();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-  await OTP.deleteMany({ email: email.toLowerCase() });
-  await OTP.create({ email: email.toLowerCase(), otp, expiresAt });
+  await OTP.deleteMany({ email: email.toLowerCase(), role: 'user' });
+  await OTP.create({ email: email.toLowerCase(), otp, role: 'user', expiresAt });
 
   try {
     await sendOTPEmail(email, user.name, otp);
@@ -105,6 +105,7 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
 
   const record = await OTP.findOne({
     email: email.toLowerCase(),
+    role: 'user',
     verified: false,
     expiresAt: { $gt: new Date() },
   });
@@ -127,18 +128,69 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
   sendSuccess(res, { token, user: { _id: user._id, name: user.name, email: user.email, phone: user.phone, accountType: user.accountType, gstNumber: user.gstNumber } }, 'Login successful');
 };
 
-export const adminLogin = async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
+export const sendAdminOtp = async (req: Request, res: Response): Promise<void> => {
+  const { email, phone } = req.body;
 
-  if (!email || !password) {
-    sendError(res, 'Email and password are required');
+  if (!email || !phone) {
+    sendError(res, 'Email and phone are required');
     return;
   }
 
   const Admin = (await import('../models/Admin')).default;
-  const admin = await Admin.findOne({ email: email.toLowerCase() }).select('+password');
-  if (!admin || !(await admin.comparePassword(password))) {
-    sendError(res, 'Invalid credentials', 401);
+  const admin = await Admin.findOne({ email: email.toLowerCase(), phone });
+  if (!admin) {
+    sendError(res, 'No admin account found with this email and phone', 404);
+    return;
+  }
+
+  const otp = generateOTP();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  await OTP.deleteMany({ email: email.toLowerCase(), role: 'admin' });
+  await OTP.create({ email: email.toLowerCase(), otp, role: 'admin', expiresAt });
+
+  try {
+    await sendOTPEmail(email, admin.name, otp);
+  } catch (err: any) {
+    console.error('[EMAIL ERROR] Failed to send admin OTP to', email, '—', err?.message ?? err);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[DEV] Admin OTP for ${email}: ${otp}`);
+    } else {
+      sendError(res, 'Failed to send OTP email. Please try again.', 500);
+      return;
+    }
+  }
+
+  sendSuccess(res, { email }, 'OTP sent to admin email');
+};
+
+export const verifyAdminOtp = async (req: Request, res: Response): Promise<void> => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    sendError(res, 'Email and OTP are required');
+    return;
+  }
+
+  const record = await OTP.findOne({
+    email: email.toLowerCase(),
+    role: 'admin',
+    verified: false,
+    expiresAt: { $gt: new Date() },
+  });
+
+  if (!record || record.otp !== otp) {
+    sendError(res, 'Invalid or expired OTP', 400);
+    return;
+  }
+
+  record.verified = true;
+  await record.save();
+
+  const Admin = (await import('../models/Admin')).default;
+  const admin = await Admin.findOne({ email: email.toLowerCase() });
+  if (!admin) {
+    sendError(res, 'Admin not found', 404);
     return;
   }
 

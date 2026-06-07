@@ -79,6 +79,18 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/public', publicRoutes);
 
+// Developer panel — git-ignored, local only
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const devRoutes = require('./routes/dev.routes').default;
+    app.use('/dev', devRoutes);
+    console.log('[DEV] Developer panel active at /dev');
+  } catch {
+    // dev.routes.ts not present on this machine — that is fine
+  }
+}
+
 app.use((_req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
 
 export default app;

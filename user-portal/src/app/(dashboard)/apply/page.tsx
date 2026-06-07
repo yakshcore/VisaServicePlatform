@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/components/ui/use-toast';
 import { getPublicCountries, getPublicVisaTypes, createApplication, uploadDocument, addDocumentFromVault, makePayment, getVaultDocuments } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
+import { useAuthStore } from '@/store/auth.store';
 import type { Country, VisaType, FormField, DocumentRequirement, VaultDocument } from '@/types';
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -40,6 +41,10 @@ function getVaultType(reqName: string): string | null {
 
 export default function ApplyPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const isCorporate = user?.accountType === 'corporate';
+  const effectivePrice = (v: VisaType) =>
+    isCorporate && v.corporatePrice ? v.corporatePrice : v.price;
   const [step, setStep] = useState<Step>(1);
   const [countries, setCountries] = useState<Country[]>([]);
   const [visaTypes, setVisaTypes] = useState<VisaType[]>([]);
@@ -422,7 +427,13 @@ export default function ApplyPage() {
                         )}
                       </div>
                       <div className="text-right ml-4 flex-shrink-0">
-                        <p className="font-bold text-blue-700">{formatCurrency(v.price)}</p>
+                        <p className="font-bold text-blue-700">{formatCurrency(effectivePrice(v))}</p>
+                        {isCorporate && v.corporatePrice && (
+                          <>
+                            <p className="text-[11px] font-semibold text-violet-600">Corporate rate</p>
+                            <p className="text-[11px] text-slate-400 line-through">{formatCurrency(v.price)}</p>
+                          </>
+                        )}
                         <p className="text-xs text-slate-400">{v.processingDays} days</p>
                         {v.validity && <p className="text-xs text-slate-400">Valid: {v.validity}</p>}
                       </div>
@@ -684,8 +695,20 @@ export default function ApplyPage() {
               {/* Payment summary */}
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide mb-1">Total Fee</p>
-                  <p className="text-3xl font-bold text-blue-900">{formatCurrency(selectedVisa.price)}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Total Fee</p>
+                    {isCorporate && selectedVisa.corporatePrice && (
+                      <span className="text-[10px] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full uppercase tracking-wide">
+                        Corporate
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-3xl font-bold text-blue-900">{formatCurrency(effectivePrice(selectedVisa))}</p>
+                  {isCorporate && selectedVisa.corporatePrice && (
+                    <p className="text-xs text-slate-400 line-through mt-0.5">
+                      Regular: {formatCurrency(selectedVisa.price)}
+                    </p>
+                  )}
                 </div>
                 <CreditCard className="w-10 h-10 text-blue-400" />
               </div>

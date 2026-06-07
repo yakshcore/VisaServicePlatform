@@ -66,6 +66,13 @@ export const getUserPayments = () => api.get('/user/payments');
 export const downloadReceipt = (id: string) =>
   api.get(`/user/payments/${id}/receipt`, { responseType: 'blob' });
 
+// User — Profile
+export const getUserProfile = () => api.get('/user/profile');
+export const updateProfile = (data: { name?: string; phone?: string; gstNumber?: string }) =>
+  api.put('/user/profile', data);
+export const uploadProfilePhoto = (formData: FormData) =>
+  api.post('/user/profile/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+
 // Notifications
 export const getNotifications = () => api.get('/user/notifications');
 export const markNotificationRead = (id: string) => api.put(`/user/notifications/${id}/read`);

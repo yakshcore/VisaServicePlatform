@@ -53,10 +53,9 @@ async function seed() {
 
   // ── Admin ──────────────────────────────────────────────────────────────────
   await Admin.create({
-    name:     process.env.ADMIN_NAME     || 'Super Admin',
-    email:    process.env.ADMIN_EMAIL    || 'admin@pravasatransworld.com',
-    phone:    process.env.ADMIN_PHONE    || '9999999999',
-    password: process.env.ADMIN_PASSWORD || 'Admin@123',
+    name:  process.env.ADMIN_NAME  || 'Super Admin',
+    email: process.env.ADMIN_EMAIL || 'admin@pravasatransworld.com',
+    phone: process.env.ADMIN_PHONE || '9999999999',
   });
   console.log('✔ Admin created');
 
@@ -494,8 +493,9 @@ async function seed() {
   console.log(`✔ Visa types seeded (${visaTypes.length})`);
 
   console.log('\n✅ Seed completed successfully!');
-  console.log(`   Admin : ${process.env.ADMIN_EMAIL    || 'admin@pravasatransworld.com'}`);
-  console.log(`   Pass  : ${process.env.ADMIN_PASSWORD || 'Admin@123'}`);
+  console.log(`   Admin : ${process.env.ADMIN_EMAIL || 'admin@pravasatransworld.com'}`);
+  console.log(`   Phone : ${process.env.ADMIN_PHONE || '9999999999'}`);
+  console.log('   Login : email + phone → OTP');
   process.exit(0);
 }
 

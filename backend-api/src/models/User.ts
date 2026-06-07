@@ -6,6 +6,8 @@ export interface IUser extends Document {
   phone: string;
   accountType: 'individual' | 'corporate';
   gstNumber?: string;
+  profilePhoto: string;
+  profilePhotoPublicId: string;
   isActive: boolean;
   createdAt: Date;
 }
@@ -17,6 +19,8 @@ const UserSchema = new Schema<IUser>(
     phone: { type: String, required: true, trim: true },
     accountType: { type: String, enum: ['individual', 'corporate'], default: 'individual' },
     gstNumber: { type: String, trim: true },
+    profilePhoto: { type: String, default: '' },
+    profilePhotoPublicId: { type: String, default: '' },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

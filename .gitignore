@@ -7,3 +7,7 @@ build/
 *.log
 .DS_Store
 .vercel
+
+# Developer panel — local only, never commit
+backend-api/src/routes/dev.routes.ts
+admin-portal/src/app/dev/

@@ -15,8 +15,8 @@ export const uploadVaultDocument = async (req: AuthRequest, res: Response): Prom
   const { type, label } = req.body;
   if (!type || !label) { sendError(res, 'type and label are required'); return; }
 
-  // Upload to Cloudinary
-  const { url, publicId } = await uploadToCloudinary(req.file.buffer, 'document-vault');
+  const userId = String(req.user!._id);
+  const { url, publicId } = await uploadToCloudinary(req.file.buffer, `users/${userId}/vault`);
 
   // Run OCR on supported document types
   let extractedData: Record<string, string> = {};

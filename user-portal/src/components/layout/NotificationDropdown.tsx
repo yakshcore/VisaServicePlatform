@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { Bell, X } from 'lucide-react';
 import { useSocket } from '@/components/providers/SocketProvider';
 import {
@@ -37,7 +38,7 @@ export default function NotificationDropdown() {
             </button>
           )}
         </div>
-        <div className="max-h-[400px] overflow-y-auto">
+        <div className="max-h-[360px] overflow-y-auto">
           {sorted.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-slate-500">No notifications yet.</div>
           ) : (
@@ -69,6 +70,15 @@ export default function NotificationDropdown() {
               </div>
             ))
           )}
+        </div>
+        <div className="border-t border-slate-100 bg-slate-50/50">
+          <Link
+            href="/notifications"
+            onClick={() => setOpen(false)}
+            className="flex items-center justify-center w-full py-2.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-slate-100 transition-colors"
+          >
+            View all notifications
+          </Link>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

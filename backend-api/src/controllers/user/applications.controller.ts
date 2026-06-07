@@ -42,13 +42,33 @@ export const createApplication = async (req: AuthRequest, res: Response): Promis
   const visaType = await VisaType.findById(visaTypeId);
   if (!visaType || !visaType.isActive) { sendError(res, 'Visa type not found', 404); return; }
 
+  const countryDoc = await Country.findById(visaType.country);
+  const rawCode = (countryDoc?.code || countryDoc?.name || 'GEN')
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '')
+    .slice(0, 3)
+    .padEnd(3, 'X');
+
+  let referenceId = '';
+  for (let i = 0; i < 10; i++) {
+    const num = String(Math.floor(1000 + Math.random() * 9000));
+    const candidate = `PRS-${rawCode}-${num}`;
+    const exists = await Application.findOne({ referenceId: candidate });
+    if (!exists) { referenceId = candidate; break; }
+  }
+  if (!referenceId) referenceId = `PRS-${rawCode}-${Date.now().toString().slice(-4)}`;
+
+  const isCorporate = req.user!.accountType === 'corporate';
+  const paymentAmount = (isCorporate && visaType.corporatePrice) ? visaType.corporatePrice : visaType.price;
+
   const application = await Application.create({
     user: req.user!._id,
     visaType: visaType._id,
     country: visaType.country,
     status: 'submitted',
     formResponses: formResponses || {},
-    paymentAmount: visaType.price,
+    paymentAmount,
+    referenceId,
   });
 
   const populated = await Application.findById(application._id)
@@ -97,7 +117,8 @@ export const uploadDocument = async (req: AuthRequest, res: Response): Promise<v
     sendError(res, 'Cannot upload documents at this stage'); return;
   }
 
-  const { url, publicId } = await uploadToCloudinary(req.file.buffer, 'visa-documents');
+  const userId = String(req.user!._id);
+  const { url, publicId } = await uploadToCloudinary(req.file.buffer, `users/${userId}/documents`);
 
   const existing = await Document.findOne({ application: application._id, requirementName });
   let doc;

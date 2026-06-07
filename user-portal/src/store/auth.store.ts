@@ -8,6 +8,7 @@ interface User {
   phone: string;
   accountType?: 'individual' | 'corporate';
   gstNumber?: string;
+  profilePhoto?: string;
 }
 
 interface AuthState {
@@ -18,6 +19,7 @@ interface AuthState {
   setHasHydrated: (v: boolean) => void;
   login: (user: User, token: string) => void;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -36,6 +38,10 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem('token');
         set({ user: null, token: null, isAuthenticated: false });
       },
+      updateUser: (updates) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, ...updates } : null,
+        })),
     }),
     {
       name: 'auth-storage',

@@ -1,4 +1,4 @@
-﻿# Pravasa Transworld Platform — Deep Technical Context
+# Pravasa Transworld Platform — Deep Technical Context
 
 ## Overview
 
@@ -35,16 +35,21 @@ Workspaces are managed via `npm workspaces`. The root `package.json` exposes con
 - **Framework:** Express.js
 - **Database:** MongoDB via Mongoose
 - **Auth:** JWT (jsonwebtoken), bcryptjs for admin passwords
-- **Email:** Nodemailer (SMTP / Gmail)
-- **File Storage:** Cloudinary (documents, visa PDFs)
+- **Email:** Nodemailer (SMTP / Gmail or Brevo)
+- **File Storage:** Cloudinary (documents, vault, profile photos, visa PDFs)
 - **File Upload:** Multer (in-memory buffer → Cloudinary)
+- **Real-time:** Socket.io
 
 ### Entry Points
 
 `src/app.ts` bootstraps Express with:
-- CORS restricted to `FRONTEND_URL` (`:3000`) and `ADMIN_URL` (`:3001`)
+- CORS restricted to `FRONTEND_URL` (`:3000`) and `ADMIN_URL` (`:3001`), plus Vercel preview URLs
+- Helmet security headers (CSP disabled for JSON API)
+- NoSQL injection protection (mongoSanitize)
+- XSS sanitisation on req.body / req.query
 - JSON body parser with 10 MB limit
-- Health check at `GET /health`
+- Health check at `GET /health` → `{ status: 'ok', service: 'Pravasa Transworld API' }`
+- Status check at `GET /` → `{ status: 'active' }`
 - Route mounts: `/api/auth`, `/api/admin`, `/api/user`, `/api/public`
 
 ### Route Map
@@ -52,9 +57,33 @@ Workspaces are managed via `npm workspaces`. The root `package.json` exposes con
 #### Auth Routes (`/api/auth`)
 | Method | Path | Description |
 |---|---|---|
-| POST | `/send-otp` | Create/update user, generate 6-digit OTP, send email |
+| POST | `/send-otp` | Create/update user, generate 6-digit OTP, send email (new registrations) |
+| POST | `/send-login-otp` | Send OTP to an existing user's email (returning login) |
 | POST | `/verify-otp` | Validate OTP, return JWT + user object |
 | POST | `/admin/login` | Email + password login for admins, return JWT |
+
+#### User Routes (`/api/user`) — requires `protect` middleware
+| Method | Path | Description |
+|---|---|---|
+| GET | `/profile` | Get authenticated user's profile |
+| PUT | `/profile` | Update name, phone, GST number |
+| POST | `/profile/photo` | Upload / replace profile photo (Multer → Cloudinary `users/{id}/profile`) |
+| GET | `/dashboard` | User-specific stats |
+| GET/POST | `/applications` | List / create application |
+| GET | `/applications/:id` | Application detail with documents and visa file |
+| POST | `/applications/:id/documents` | Upload document file (Multer → Cloudinary `users/{id}/documents`) |
+| POST | `/applications/:id/documents/from-vault` | Attach an existing vault document to an application |
+| PUT | `/applications/:id/payment` | Submit payment for application |
+| GET/POST | `/vault` | Document vault: list / upload (Cloudinary `users/{id}/vault`) |
+| GET | `/vault/:id/url` | Get 1-hour signed Cloudinary URL for a vault document |
+| DELETE | `/vault/:id` | Delete vault document (removes from Cloudinary) |
+| GET | `/payments` | Payment history |
+| GET | `/payments/:id/receipt` | Download PDF payment receipt (applicant name + application number) |
+| GET | `/notifications` | Notification list (last 50) + unread count |
+| PUT | `/notifications/:id/read` | Mark single notification read |
+| PUT | `/notifications/read-all` | Mark all notifications read |
+| DELETE | `/notifications/:id` | Delete single notification |
+| DELETE | `/notifications/all` | Delete all notifications |
 
 #### Admin Routes (`/api/admin`) — requires `adminProtect` middleware
 | Method | Path | Description |
@@ -66,6 +95,7 @@ Workspaces are managed via `npm workspaces`. The root `package.json` exposes con
 | GET/POST | `/visa-types` | List all / create visa type |
 | GET/PUT/DELETE | `/visa-types/:id` | Detail / update / delete visa type |
 | PATCH | `/visa-types/:id/toggle` | Toggle active status |
+| PATCH | `/visa-types/:id/corporate-price` | Update the corporate price for a visa type |
 | GET | `/applications` | Paginated list with filters |
 | GET | `/applications/:id` | Full application detail |
 | PUT | `/applications/:id/status` | Update application status |
@@ -73,27 +103,20 @@ Workspaces are managed via `npm workspaces`. The root `package.json` exposes con
 | PUT | `/applications/:id/approve-documents` | Bulk approve all documents |
 | POST | `/applications/:id/visa-file` | Upload visa PDF (Multer → Cloudinary) |
 | PUT | `/applications/:id/manual-payment` | Override payment manually |
+| GET | `/applications/:id/documents/zip` | Download all application documents as ZIP |
 | GET | `/payments` | Payment list across all applications |
 | GET | `/users` | All registered applicants |
 | GET | `/users/:userId/applications` | Applications for a specific user |
+| GET | `/users/:userId/vault` | A user's vault documents |
+| GET | `/users/:userId/vault/zip` | Download a user's vault as ZIP |
 | GET | `/leads` | Contact form leads |
 | PATCH | `/leads/:id/read` | Mark lead as read |
-
-#### User Routes (`/api/user`) — requires `protect` middleware
-| Method | Path | Description |
-|---|---|---|
-| GET | `/dashboard` | User-specific stats |
-| GET/POST | `/applications` | List / create application |
-| GET | `/applications/:id` | Application detail with timeline |
-| POST | `/applications/:id/documents` | Upload document file (Multer → Cloudinary) |
-| PUT | `/applications/:id/payment` | Submit payment for application |
-| GET/POST | `/vault` | Document vault: list / upload |
-| DELETE | `/vault/:id` | Delete vault document |
-| GET | `/payments` | Payment history |
-| GET | `/payments/:id/receipt` | Download payment receipt |
-| GET | `/notifications` | Notification list |
-| PUT | `/notifications/:id/read` | Mark single notification read |
-| PUT | `/notifications/read-all` | Mark all notifications read |
+| DELETE | `/leads/:id` | Delete a lead |
+| GET | `/notifications` | Admin notification list |
+| PUT | `/notifications/read-all` | Mark all admin notifications read |
+| PUT | `/notifications/:id/read` | Mark single admin notification read |
+| DELETE | `/notifications/all` | Delete all admin notifications |
+| DELETE | `/notifications/:id` | Delete single admin notification |
 
 #### Public Routes (`/api/public`)
 Unauthenticated routes for the landing page (countries list, visa types, contact form).
@@ -105,10 +128,14 @@ Unauthenticated routes for the landing page (countries list, visa types, contact
 ### User
 ```typescript
 {
-  name: string          // required
-  email: string         // unique, lowercase
+  name: string                // required
+  email: string               // unique, lowercase
   phone: string
-  isActive: boolean     // default true
+  accountType: 'individual' | 'corporate'  // default: 'individual'
+  gstNumber?: string          // corporate accounts only
+  profilePhoto: string        // Cloudinary URL, default ''
+  profilePhotoPublicId: string // Cloudinary public ID for deletion, default ''
+  isActive: boolean           // default true
   createdAt: Date
   updatedAt: Date
 }
@@ -118,9 +145,9 @@ Unauthenticated routes for the landing page (countries list, visa types, contact
 ```typescript
 {
   name: string
-  email: string         // unique
+  email: string               // unique
   phone: string
-  password: string      // bcrypt hashed, select: false
+  password: string            // bcrypt hashed, select: false
   isActive: boolean
 }
 // Instance method: comparePassword(candidate): Promise<boolean>
@@ -129,18 +156,19 @@ Unauthenticated routes for the landing page (countries list, visa types, contact
 ### OTP
 ```typescript
 {
-  email: string         // lowercase
-  otp: string           // 6-digit string
-  expiresAt: Date       // 10 minutes from creation
-  verified: boolean     // default false
+  email: string               // lowercase
+  otp: string                 // 6-digit string
+  expiresAt: Date             // 10 minutes from creation
+  verified: boolean           // default false
 }
 ```
 
 ### Country
 ```typescript
 {
-  name: string          // unique
-  flag: string          // emoji or URL
+  name: string                // unique
+  flag: string                // country code for flagcdn.com (e.g. 'in', 'us')
+  code: string                // optional ISO alpha-3 code (e.g. 'IND', 'USA') — used in application reference IDs
   description: string
   isActive: boolean
 }
@@ -149,11 +177,13 @@ Unauthenticated routes for the landing page (countries list, visa types, contact
 ### VisaType
 ```typescript
 {
-  country: ObjectId     // ref: Country
+  country: ObjectId           // ref: Country
   name: string
   description: string
-  price: number         // in platform currency
+  price: number               // standard (individual) price
+  corporatePrice?: number     // corporate rate — charged to corporate account users
   processingDays: number
+  validity: string
   formFields: FormField[]
   documentRequirements: DocumentRequirement[]
   isActive: boolean
@@ -167,7 +197,7 @@ Unauthenticated routes for the landing page (countries list, visa types, contact
   fieldName: string
   type: 'text' | 'number' | 'email' | 'date' | 'select' | 'radio' | 'textarea' | 'file'
   required: boolean
-  options: string[]     // for select / radio types
+  options: string[]           // for select / radio types
   placeholder: string
   order: number
 }
@@ -185,30 +215,67 @@ Unauthenticated routes for the landing page (countries list, visa types, contact
 ### Application
 ```typescript
 {
-  user: ObjectId        // ref: User
-  visaType: ObjectId    // ref: VisaType
-  country: ObjectId     // ref: Country
+  user: ObjectId              // ref: User
+  visaType: ObjectId          // ref: VisaType
+  country: ObjectId           // ref: Country
   status: ApplicationStatus
-  formResponses: Map<string, string>   // fieldName → value
+  formResponses: Map<string, string>   // fieldName → value (encrypted at rest)
   rejectionReason: string
   adminNotes: string
-  paymentAmount: number
-  referenceId: string   // auto-generated: VF-{timestamp}-{5-char random}
+  paymentAmount: number       // set at creation: corporatePrice if corporate user, else price
+  referenceId: string         // format: PRS-{3-letter country code}-{4-digit number}, e.g. PRS-IND-4827
   createdAt: Date
   updatedAt: Date
 }
 ```
 
+**referenceId generation** — done in `createApplication` controller:
+1. Fetch the Country document linked to the visa type
+2. Use `country.code` if set, otherwise derive 3 letters from `country.name`
+3. Pick a random 4-digit number (1000–9999) and check uniqueness; retry up to 10 times
+4. Result: `PRS-IND-4827`, `PRS-USA-2391`, etc.
+
 ### Document
 ```typescript
 {
-  application: ObjectId  // ref: Application
+  application: ObjectId       // ref: Application
   requirementName: string
-  url: string            // Cloudinary URL
-  publicId: string       // Cloudinary public ID
+  url: string                 // Cloudinary URL
+  publicId: string            // Cloudinary public ID
   status: 'pending' | 'approved' | 'rejected'
   rejectionReason: string
   reviewedAt: Date | null
+}
+```
+
+### DocumentVault
+```typescript
+{
+  user: ObjectId
+  type: 'passport' | 'aadhar' | 'pan' | 'photograph' | 'bank_statement' | 'degree' | 'other'
+  label: string               // user-supplied label
+  url: string                 // Cloudinary URL
+  publicId: string
+  extractedData: Record<string, string>  // encrypted OCR results
+  createdAt: Date
+}
+```
+
+### Payment
+```typescript
+{
+  application: ObjectId       // ref: Application
+  user: ObjectId              // ref: User
+  amount: number
+  currency: string            // default 'USD'
+  method: 'online' | 'cash' | 'manual_override'
+  status: 'pending' | 'completed' | 'failed' | 'refunded'
+  transactionId: string       // TXN-{timestamp}-{random}
+  markedByAdmin: boolean
+  adminNote: string
+  receiptUrl: string
+  paidAt: Date | null
+  createdAt: Date
 }
 ```
 
@@ -228,9 +295,21 @@ Unauthenticated routes for the landing page (countries list, visa types, contact
 ### VisaFile
 ```typescript
 {
-  application: ObjectId  // ref: Application
-  url: string            // Cloudinary URL of delivered visa PDF
+  application: ObjectId       // ref: Application
+  url: string                 // Cloudinary URL of delivered visa PDF
   publicId: string
+}
+```
+
+### ContactLead
+```typescript
+{
+  name: string
+  email: string
+  phone?: string
+  message: string
+  read: boolean               // default false
+  createdAt: Date
 }
 ```
 
@@ -250,13 +329,14 @@ submitted
             → embassy_review
               → visa_approved
                 → visa_delivered
-              → visa_rejected   (terminal — no further transitions)
+              → visa_rejected   (terminal)
 ```
 
 All 10 statuses are represented by the `ApplicationStatus` union type, shared across the monorepo via `shared/src/types/index.ts`.
 
 **Business rules:**
 - Payment UI is only unlocked after status reaches `documents_approved`
+- `paymentAmount` is locked at application creation — corporate users get `corporatePrice` if set
 - Visa file upload by admin moves status to `visa_delivered`
 - `visa_rejected` is a terminal dead-end; no recovery path in V1
 
@@ -265,12 +345,14 @@ All 10 statuses are represented by the `ApplicationStatus` union type, shared ac
 ## Authentication Architecture
 
 ### User Auth (Passwordless OTP)
-1. User submits name + email + phone → `POST /api/auth/send-otp`
-2. Backend upserts User document (creates on first visit, updates name/phone on repeat)
-3. OTP: 6-digit numeric, stored hashed in OTP collection, expires in 10 min
-4. OTP emailed via Nodemailer (dev fallback: logs to console)
-5. User submits email + OTP → `POST /api/auth/verify-otp`
-6. On success: OTP marked verified, JWT issued (`role: 'user'`, 7-day expiry)
+Two separate OTP flows:
+1. **Register / re-auth** — `POST /api/auth/send-otp` — upserts the User document (creates on first visit, updates name/phone on repeat)
+2. **Returning login** — `POST /api/auth/send-login-otp` — only accepts an existing user's email, does not create or modify the user record
+
+Both flows:
+- Generate a 6-digit OTP, store hashed in OTP collection, expire in 10 min
+- Email OTP via Nodemailer
+- `POST /api/auth/verify-otp` validates OTP and issues JWT (`role: 'user'`, 7-day expiry)
 
 ### Admin Auth (Password)
 1. Admin submits email + password → `POST /api/auth/admin/login`
@@ -279,8 +361,68 @@ All 10 statuses are represented by the `ApplicationStatus` union type, shared ac
 4. JWT issued (`role: 'admin'`, 7-day expiry)
 
 ### Middleware
-- `protect` — validates JWT, attaches `req.user`, rejects non-user roles
-- `adminProtect` — validates JWT, attaches `req.admin`, rejects non-admin roles
+- `protect` — validates JWT, fetches full User document from DB, attaches as `req.user`; rejects non-user roles
+- `adminProtect` — validates JWT, attaches `req.admin`; rejects non-admin roles
+
+---
+
+## Corporate Pricing
+
+When a user with `accountType: 'corporate'` submits an application:
+- `createApplication` checks `req.user.accountType`
+- If `visaType.corporatePrice` is set, uses that as `paymentAmount`; otherwise falls back to `visaType.price`
+- The stored `paymentAmount` is the source of truth for payment and receipt generation
+
+On the apply page (user portal):
+- Corporate users see the `corporatePrice` displayed in bold with a "Corporate rate" badge
+- The regular `price` is shown struck-through for reference
+- The Review & Pay step shows the same breakdown with a "Corporate" pill
+
+---
+
+## File Storage (Cloudinary)
+
+Configured via `src/config/cloudinary.ts`. Upload service in `src/services/cloudinary.service.ts`.
+
+All uploads are user-scoped with the following folder structure:
+
+| Content | Cloudinary Folder |
+|---|---|
+| Application documents | `users/{userId}/documents` |
+| Vault documents | `users/{userId}/vault` |
+| Profile photos | `users/{userId}/profile` |
+| Visa PDFs (admin upload) | configured separately |
+
+Functions:
+- `uploadToCloudinary(buffer, folder, resourceType)` — streams buffer via upload_stream
+- `deleteFromCloudinary(publicId)` — removes file
+- `getSignedUrl(storedUrl, publicId, expiresInSeconds)` — creates a time-limited signed delivery URL (used for vault document viewing)
+
+When a user replaces their profile photo, the old Cloudinary asset is deleted before uploading the new one.
+
+---
+
+## Payment & Receipts
+
+Payment is simulated (no live gateway yet). When a user submits payment:
+1. A `Payment` record is created with `status: 'completed'` and a `transactionId`
+2. Application status advances to `payment_completed`
+3. Admin and user notifications emitted via Socket.io
+
+Receipt PDF (generated on demand via `GET /user/payments/:id/receipt`):
+- Generated with PDFKit
+- Contains: receipt number, date, applicant name, application reference (`PRS-IND-4827`), visa type, destination, payment method, transaction ID, total amount
+- Returned as `application/pdf` blob
+
+---
+
+## Real-time Notifications (Socket.io)
+
+- Server emits to per-user rooms: `user_{userId}` and `admin_room`
+- `SocketProvider` on the client connects with Bearer token auth
+- Events: `notification` (user), `admin_notification` (admin)
+- Toast displayed on new real-time notification
+- Unread count badge on the bell icon in the header
 
 ---
 
@@ -288,25 +430,12 @@ All 10 statuses are represented by the `ApplicationStatus` union type, shared ac
 
 Four email templates, all styled with inline CSS (blue brand: `#1d4ed8`):
 
-| Function | Trigger | Subject |
-|---|---|---|
-| `sendOTPEmail` | OTP request | "Your Pravasa Transworld Login OTP" |
-| `sendDocumentStatusEmail` | Doc approve/reject | "Documents Approved" / "Document Revision Required" |
-| `sendStatusUpdateEmail` | Any status change | "Application Update: {status label}" |
-| `sendVisaDeliveredEmail` | Visa file uploaded | "Your Visa is Ready for Download!" |
-
-All templates share a header (blue banner, Pravasa Transworld logo) and footer (copyright, do-not-reply).
-
----
-
-## File Storage (Cloudinary)
-
-- Configured via `src/config/cloudinary.ts`
-- Upload service in `src/services/cloudinary.service.ts`
-- Multer middleware: in-memory storage, 10 MB limit
-- Two use cases:
-  1. **Application documents** — uploaded by users, stored under a per-application folder
-  2. **Visa PDFs** — uploaded by admin after approval, delivered via Cloudinary URL
+| Function | Trigger |
+|---|---|
+| `sendOTPEmail` | OTP request (register or login) |
+| `sendDocumentStatusEmail` | Doc approve/reject by admin |
+| `sendStatusUpdateEmail` | Any status change |
+| `sendVisaDeliveredEmail` | Visa file uploaded by admin |
 
 ---
 
@@ -314,7 +443,7 @@ All templates share a header (blue banner, Pravasa Transworld logo) and footer (
 
 `shared/src/types/index.ts` exports all interfaces consumed by both portals:
 - `ApplicationStatus` union + `STATUS_LABELS` map + `TIMELINE_STATUSES` array
-- `FormField`, `DocumentRequirement`, `Country`, `VisaType`
+- `FormField`, `DocumentRequirement`, `Country`, `VisaType` (includes `corporatePrice?`)
 - `Application`, `Document`, `Notification`, `User`, `VisaFile`
 - `ApiResponse<T>` generic wrapper: `{ success, message, data }`
 - `DashboardStats`: `{ active, pending, approved, rejected, total }`
@@ -326,13 +455,49 @@ All templates share a header (blue banner, Pravasa Transworld logo) and footer (
 ### User Portal (`user-portal/`) — Next.js 15 App Router, port 3000
 
 **Route groups:**
-- `(auth)` — `/login` (passwordless OTP flow)
-- `(public)` — `/privacy`, `/terms`
-- `(dashboard)` — `/notifications`, applications, document vault
+- `(auth)` — `/login`, `/register`
+- `(public)` — `/about`, `/contact`, `/privacy`, `/terms`
+- `(dashboard)` — all authenticated pages
+
+**Dashboard pages:**
+| Route | Description |
+|---|---|
+| `/dashboard` | Stats + recent applications |
+| `/apply` | 5-step visa application wizard |
+| `/applications` | Application list |
+| `/applications/[id]` | Application detail with document upload and payment |
+| `/my-visas` | Approved/delivered visas |
+| `/document-vault` | Personal document storage with OCR auto-fill |
+| `/payment-history` | Payment records and receipt download |
+| `/notifications` | Full notifications page |
+| `/profile` | Profile editing, photo upload, sign out |
+
+**Responsive layout:**
+- `lg+` (laptop/desktop): fixed left sidebar with collapse/expand toggle; sidebar shows avatar (→ `/profile`), nav items, Profile link, Sign Out
+- `< lg` (mobile/tablet): top navbar with hamburger button; sidebar slides in as a full-height overlay drawer; route changes auto-close the drawer
+
+**Notifications UX:**
+- "Notifications" removed from sidebar nav
+- Bell icon in top header opens a dropdown showing recent notifications
+- Dropdown footer has a "View all notifications" link to the full `/notifications` page
+
+**Profile page (`/profile`):**
+- Profile photo with camera overlay button (uploads to Cloudinary, deletes old photo)
+- Editable: name, phone, GST number (corporate only)
+- Read-only: email, account type
+- Sign Out button
+
+**State management:** Zustand with localStorage persistence
+- `useAuthStore` stores: `user` (including `profilePhoto`), `token`, `isAuthenticated`
+- Actions: `login`, `logout`, `updateUser` (partial update without full re-login)
+
+**KYC gate:** Dashboard blocked until Aadhaar (front + back) and PAN are uploaded to vault.
 
 **Key components:**
-- `StatusTimeline.tsx` — visual step tracker rendering the 10-stage pipeline
-- Shared UI primitives: `Button`, `Input`, `Card`, `Badge`, `Label`, `Select`, Toast system
+- `DashboardSidebar` — collapsible desktop sidebar; `mobile` prop enables overlay drawer mode
+- `NotificationDropdown` — bell with unread badge, sorted list, "View all" footer link
+- `StatusTimeline` — visual 10-stage pipeline tracker
+- `KYCModal` — document upload gate
 
 **Env:** `NEXT_PUBLIC_API_URL=http://localhost:5000/api`
 
@@ -340,11 +505,20 @@ All templates share a header (blue banner, Pravasa Transworld logo) and footer (
 
 **Routes:**
 - `/login` — email + password form
-- Dashboard, country management, visa type builder, applications management, leads
+- `/dashboard` — live stats
+- `/applications` — list with filters; `/applications/[id]` — full detail, document review, approval
+- `/processing` — Kanban board
+- `/countries` — country management (name, flag, ISO code)
+- `/visa-types` — visa type management including corporate price field
+- `/users` — customer list; `/users/[id]` — customer detail
+- `/leads` — contact form submissions
+- `/notifications` — admin notifications
 
 **Key capabilities:**
 - No-code dynamic form builder — admin configures `formFields` per visa type
-- Document review with per-document approve/reject + reason
+- Corporate price field per visa type
+- Per-document review with approve/reject + reason
+- Bulk document approval
 - Manual payment override
 - Visa file upload (PDF → Cloudinary)
 
@@ -396,9 +570,14 @@ Running `npm run seed` creates:
 | Decision | Rationale |
 |---|---|
 | Passwordless OTP for users | Reduces friction for one-time / infrequent applicants |
+| Separate register vs login OTP endpoint | Prevents accidentally creating duplicate accounts on returning login |
 | Separate admin portal (port 3001) | Hard separation of concerns; admin never touches user portal code |
 | Shared `types/` package | Single source of truth for API contracts across portals |
 | Dynamic form builder | Agencies can configure visa-specific fields without code changes |
-| Cloudinary for files | Managed CDN with signed URLs; avoids self-hosted file storage complexity |
-| 10-stage linear status flow | Mirrors real-world embassy processing pipeline; easy to audit |
+| Corporate pricing at creation time | `paymentAmount` is locked when application is created — no price drift if admin changes corporatePrice later |
+| User-scoped Cloudinary folders | `users/{id}/documents`, `vault`, `profile` — isolates each user's assets, simplifies auditing and deletion |
+| Application reference format `PRS-{CC}-{NNNN}` | Human-readable, country-identifiable, short enough for receipts and support tickets |
+| Sidebar hidden on mobile | Small screens can't accommodate a persistent left sidebar; top navbar + drawer is standard mobile UX |
+| Notifications removed from sidebar nav | Bell icon in header gives instant access; sidebar space reserved for primary workflow navigation |
 | Payment gated on doc approval | Prevents payment before admin validates documents — reduces refund risk |
+| 10-stage linear status flow | Mirrors real-world embassy processing pipeline; easy to audit |

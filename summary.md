@@ -1,8 +1,8 @@
-﻿# Pravasa Transworld — Project Summary
+# Pravasa Transworld — Project Summary
 
 ## What Is It?
 
-Pravasa Transworld is a full-stack Visa CRM platform built for immigration service agencies. It digitizes the entire visa application process — from a applicant's first form submission to final visa delivery — replacing manual, email-based workflows with a structured, trackable pipeline.
+Pravasa Transworld is a full-stack Visa CRM platform built for immigration service agencies. It digitizes the entire visa application process — from an applicant's first form submission to final visa delivery — replacing manual, email-based workflows with a structured, trackable pipeline.
 
 ---
 
@@ -18,7 +18,7 @@ Pravasa Transworld is a full-stack Visa CRM platform built for immigration servi
 
 ## Core Flow
 
-1. Applicant logs in without a password — receives a 6-digit OTP via email
+1. Applicant registers or logs in without a password — receives a 6-digit OTP via email
 2. Selects country + visa type, fills a dynamic form, uploads required documents
 3. Admin reviews documents, requests revisions if needed, then approves
 4. Applicant pays; admin processes the application through embassy review
@@ -31,13 +31,23 @@ The application moves through **10 tracked statuses**, with email notifications 
 ## Tech at a Glance
 
 - **Stack:** Node.js / Express / TypeScript · MongoDB · Next.js 15 · Tailwind CSS
-- **Auth:** Passwordless OTP for users · JWT + bcrypt for admins
-- **Files:** Cloudinary (documents + visa PDFs)
-- **Email:** Nodemailer (Gmail SMTP)
+- **Auth:** Passwordless OTP for users (register + login OTP flows) · JWT + bcrypt for admins
+- **Files:** Cloudinary — user-specific folder structure (`users/{id}/documents`, `vault`, `profile`)
+- **Email:** Nodemailer (Gmail SMTP / Brevo SMTP)
+- **Real-time:** Socket.io for live notifications
 - **Monorepo:** npm workspaces with shared TypeScript types
+
+---
+
+## Account Types
+
+Users register as either **individual** or **corporate**. Corporate accounts:
+- See a separate `corporatePrice` on each visa type (set by admin)
+- Are charged the corporate rate when submitting an application
+- Have the corporate rate clearly shown in the apply flow with the regular price struck-through
 
 ---
 
 ## Current State
 
-Phase 2 complete. The platform has a fully working backend API, both frontend portals scaffolded with auth and core UI, a 10-stage application status pipeline, email notifications, Cloudinary file delivery, and an admin dynamic form builder. Ready for integration of a payment gateway (Stripe / Razorpay) as the next milestone.
+Phase 3 complete. The platform has a fully working backend API, responsive user and admin portals, a 10-stage application status pipeline, real-time Socket.io notifications, Cloudinary file delivery with user-scoped folder organisation, profile management with photo upload, corporate pricing, and a payment receipt system with application reference numbers in `PRS-{COUNTRY}-{4-digit}` format. Ready for integration of a live payment gateway (Stripe / Razorpay) as the next milestone.

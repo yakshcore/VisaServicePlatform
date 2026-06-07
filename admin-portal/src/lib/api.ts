@@ -26,8 +26,10 @@ api.interceptors.response.use(
 export default api;
 
 // Auth
-export const adminLogin = (data: { email: string; password: string }) =>
-  api.post('/auth/admin/login', data);
+export const sendAdminOtp = (data: { email: string; phone: string }) =>
+  api.post('/auth/admin/send-otp', data);
+export const verifyAdminOtp = (data: { email: string; otp: string }) =>
+  api.post('/auth/admin/verify-otp', data);
 
 // Dashboard
 export const getDashboardStats = () => api.get('/admin/dashboard');
