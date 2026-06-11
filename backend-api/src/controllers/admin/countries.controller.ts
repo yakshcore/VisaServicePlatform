@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AdminRequest } from '../../middleware/adminAuth.middleware';
 import Country from '../../models/Country';
 import { sendSuccess, sendError } from '../../utils/response';
+import { moveToTrash } from '../../utils/trash';
 
 export const getCountries = async (_req: AdminRequest, res: Response): Promise<void> => {
   const countries = await Country.find().sort({ name: 1 });
@@ -25,9 +26,10 @@ export const updateCountry = async (req: AdminRequest, res: Response): Promise<v
 };
 
 export const deleteCountry = async (req: AdminRequest, res: Response): Promise<void> => {
-  const country = await Country.findByIdAndDelete(req.params.id);
+  const country = await Country.findById(req.params.id);
   if (!country) { sendError(res, 'Country not found', 404); return; }
-  sendSuccess(res, null, 'Country deleted');
+  await moveToTrash('country', country);
+  sendSuccess(res, null, 'Country moved to trash');
 };
 
 export const toggleCountryStatus = async (req: AdminRequest, res: Response): Promise<void> => {

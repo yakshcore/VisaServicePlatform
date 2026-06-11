@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AdminRequest } from '../../middleware/adminAuth.middleware';
 import ContactLead from '../../models/ContactLead';
 import { sendSuccess, sendError } from '../../utils/response';
+import { moveToTrash } from '../../utils/trash';
 
 export const submitContactLead = async (req: Request, res: Response): Promise<void> => {
   const { name, email, phone, message } = req.body;
@@ -41,7 +42,8 @@ export const markLeadRead = async (req: AdminRequest, res: Response): Promise<vo
 };
 
 export const deleteLead = async (req: AdminRequest, res: Response): Promise<void> => {
-  const lead = await ContactLead.findByIdAndDelete(req.params.id);
+  const lead = await ContactLead.findById(req.params.id);
   if (!lead) { sendError(res, 'Lead not found', 404); return; }
-  sendSuccess(res, null, 'Lead deleted');
+  await moveToTrash('contactLead', lead);
+  sendSuccess(res, null, 'Lead moved to trash');
 };

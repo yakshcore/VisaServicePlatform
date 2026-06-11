@@ -29,13 +29,14 @@ export default function LeadsPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Move this lead to Trash? You can restore it later from the Trash page.')) return;
     setDeleting(id);
     try {
       await deleteLead(id);
       setLeads((prev) => prev.filter((l) => l._id !== id));
-      toast({ title: 'Lead deleted', variant: 'success' });
+      toast({ title: 'Moved to Trash', description: 'Restore it anytime from the Trash page.', variant: 'success' });
     } catch {
-      toast({ title: 'Failed to delete lead', variant: 'destructive' });
+      toast({ title: 'Failed to move lead to trash', variant: 'destructive' });
     } finally {
       setDeleting(null);
     }

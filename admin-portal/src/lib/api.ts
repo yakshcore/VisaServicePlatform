@@ -58,6 +58,12 @@ export const createFormPreset = (data: object) => api.post('/admin/form-presets'
 export const updateFormPreset = (id: string, data: object) => api.put(`/admin/form-presets/${id}`, data);
 export const deleteFormPreset = (id: string) => api.delete(`/admin/form-presets/${id}`);
 
+// Trash
+export const getTrash = () => api.get('/admin/trash');
+export const restoreTrashItem = (id: string) => api.put(`/admin/trash/${id}/restore`);
+export const deleteTrashItem = (id: string) => api.delete(`/admin/trash/${id}`);
+export const emptyTrash = () => api.delete('/admin/trash');
+
 // Applications
 export const getApplications = (params?: object) => api.get('/admin/applications', { params });
 export const getApplication = (id: string) => api.get(`/admin/applications/${id}`);
@@ -72,6 +78,7 @@ export const uploadVisaFile = (id: string, formData: FormData) =>
   });
 export const manualPaymentOverride = (id: string, adminNote?: string) =>
   api.put(`/admin/applications/${id}/manual-payment`, { adminNote });
+export const deleteApplication = (id: string) => api.delete(`/admin/applications/${id}`);
 
 // Payments
 export const getAdminPayments = () => api.get('/admin/payments');

@@ -9,6 +9,7 @@ import Notification from '../../models/Notification';
 import VisaFile from '../../models/VisaFile';
 import User from '../../models/User';
 import Payment from '../../models/Payment';
+import Trash from '../../models/Trash';
 import { uploadToCloudinary } from '../../services/cloudinary.service';
 import { sendDocumentStatusEmail, sendStatusUpdateEmail, sendVisaDeliveredEmail } from '../../services/email.service';
 import { sendSuccess, sendError } from '../../utils/response';
@@ -127,13 +128,13 @@ export const approveAllDocuments = async (req: AdminRequest, res: Response): Pro
   if (!application.paymentAmount || application.paymentAmount <= 0) {
     const fullUser = await (await import('../../models/User')).default.findById(application.user);
     const isCorporate = fullUser?.accountType === 'corporate';
-    const adultRate = isCorporate && visaType?.corporateAdultPrice
-      ? visaType.corporateAdultPrice
-      : (visaType?.adultPrice || visaType?.price || 0);
-    const childRate = isCorporate && visaType?.corporateChildPrice != null
-      ? visaType.corporateChildPrice
-      : (visaType?.childPrice || 0);
-    application.paymentAmount = (application.adults || 1) * adultRate + (application.children || 0) * childRate;
+    const useCorpAdult = isCorporate && (visaType?.corporateAdultPrice != null || visaType?.corporateAdultServiceFee != null);
+    const useCorpChild = isCorporate && (visaType?.corporateChildPrice != null || visaType?.corporateChildServiceFee != null);
+    const adultBase = useCorpAdult && visaType?.corporateAdultPrice != null ? visaType.corporateAdultPrice : (visaType?.adultPrice || visaType?.price || 0);
+    const adultFee = useCorpAdult && visaType?.corporateAdultServiceFee != null ? visaType.corporateAdultServiceFee : (visaType?.adultServiceFee || 0);
+    const childBase = useCorpChild && visaType?.corporateChildPrice != null ? visaType.corporateChildPrice : (visaType?.childPrice || 0);
+    const childFee = useCorpChild && visaType?.corporateChildServiceFee != null ? visaType.corporateChildServiceFee : (visaType?.childServiceFee || 0);
+    application.paymentAmount = (application.adults || 1) * (adultBase + adultFee) + (application.children || 0) * (childBase + childFee);
   }
   await application.save();
 
@@ -292,7 +293,27 @@ export const getAdminPayments = async (_req: AdminRequest, res: Response): Promi
     .populate('user', 'name email')
     .sort({ createdAt: -1 })
     .limit(200);
-  sendSuccess(res, payments);
+  // Hide payments whose application has been trashed (its application reference no longer resolves).
+  sendSuccess(res, payments.filter((p) => p.application));
+};
+
+// Move an application to Trash. Snapshots the encrypted document (via lean, so it
+// is NOT decrypted) and removes it from the collection; related documents/payments
+// stay in place so a restore re-links them, and are purged on permanent delete.
+export const deleteApplication = async (req: AdminRequest, res: Response): Promise<void> => {
+  const app = await Application.findById(req.params.id).populate('visaType', 'name');
+  if (!app) { sendError(res, 'Application not found', 404); return; }
+  // Snapshot the raw stored BSON (encrypted formResponses preserved exactly) for a clean restore.
+  const raw = await Application.collection.findOne({ _id: app._id });
+  await Trash.create({
+    entityType: 'application',
+    label: app.referenceId || 'Application',
+    sublabel: (app.visaType as any)?.name || '',
+    originalId: app._id,
+    data: raw,
+  });
+  await Application.deleteOne({ _id: app._id });
+  sendSuccess(res, null, 'Application moved to trash');
 };
 
 export const getUsers = async (req: AdminRequest, res: Response): Promise<void> => {

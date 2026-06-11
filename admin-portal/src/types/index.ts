@@ -40,6 +40,7 @@ export interface FormField {
   options: string[];
   placeholder: string;
   order: number;
+  childOnly?: boolean;
 }
 
 export interface DocumentRequirement {
@@ -74,8 +75,12 @@ export interface VisaType {
   corporatePrice?: number;
   adultPrice: number;
   childPrice: number;
+  adultServiceFee: number;
+  childServiceFee: number;
   corporateAdultPrice?: number;
   corporateChildPrice?: number;
+  corporateAdultServiceFee?: number;
+  corporateChildServiceFee?: number;
   processingTime: string;
   validity: string;
   entry: EntryType[];
@@ -150,6 +155,18 @@ export interface Document {
 export interface VisaFile {
   _id: string;
   url: string;
+}
+
+export type TrashEntityType = 'country' | 'visaType' | 'formPreset' | 'contactLead' | 'application';
+
+export interface TrashItem {
+  _id: string;
+  entityType: TrashEntityType;
+  entityLabel: string;
+  label: string;
+  sublabel: string;
+  originalId: string;
+  deletedAt: string;
 }
 
 export interface ContactLead {

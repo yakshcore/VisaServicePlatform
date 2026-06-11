@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AdminRequest } from '../../middleware/adminAuth.middleware';
 import VisaType from '../../models/VisaType';
 import { sendSuccess, sendError } from '../../utils/response';
+import { moveToTrash } from '../../utils/trash';
 
 export const getVisaTypes = async (req: AdminRequest, res: Response): Promise<void> => {
   const filter = req.query.country ? { country: req.query.country } : {};
@@ -15,9 +16,13 @@ export const getVisaType = async (req: AdminRequest, res: Response): Promise<voi
   sendSuccess(res, visaType);
 };
 
+const optNum = (v: unknown): number | undefined =>
+  v === undefined || v === null || v === '' ? undefined : Number(v);
+
 export const createVisaType = async (req: AdminRequest, res: Response): Promise<void> => {
   const {
-    country, name, description, adultPrice, childPrice, corporateAdultPrice, corporateChildPrice,
+    country, name, description, adultPrice, childPrice, adultServiceFee, childServiceFee,
+    corporateAdultPrice, corporateChildPrice, corporateAdultServiceFee, corporateChildServiceFee,
     processingTime, formFields, documentRequirements, entry, visaSubType, stayDuration,
     jurisdiction, visaCategory, process, validity,
   } = req.body;
@@ -25,17 +30,21 @@ export const createVisaType = async (req: AdminRequest, res: Response): Promise<
     sendError(res, 'Country, name, adult price, and processingTime are required');
     return;
   }
-  // `price` / `corporatePrice` mirror the per-adult rate for backward compatibility (listing "from" price).
+  const corporateAdult = optNum(corporateAdultPrice);
+  // `price` / `corporatePrice` mirror the per-adult base rate for backward compatibility (listing "from" price).
   const price = Number(adultPrice);
-  const corporatePrice = corporateAdultPrice !== undefined && corporateAdultPrice !== '' ? Number(corporateAdultPrice) : undefined;
   const visaType = await VisaType.create({
     country, name, description,
     price,
     adultPrice: Number(adultPrice),
     childPrice: Number(childPrice || 0),
-    corporateAdultPrice: corporatePrice,
-    corporateChildPrice: corporateChildPrice !== undefined && corporateChildPrice !== '' ? Number(corporateChildPrice) : undefined,
-    corporatePrice,
+    adultServiceFee: Number(adultServiceFee || 0),
+    childServiceFee: Number(childServiceFee || 0),
+    corporateAdultPrice: corporateAdult,
+    corporateChildPrice: optNum(corporateChildPrice),
+    corporateAdultServiceFee: optNum(corporateAdultServiceFee),
+    corporateChildServiceFee: optNum(corporateChildServiceFee),
+    corporatePrice: corporateAdult,
     processingTime, formFields, documentRequirements, entry, visaSubType, stayDuration,
     jurisdiction, visaCategory, process, validity,
   });
@@ -45,19 +54,21 @@ export const createVisaType = async (req: AdminRequest, res: Response): Promise<
 
 export const updateVisaType = async (req: AdminRequest, res: Response): Promise<void> => {
   const body = { ...req.body };
-  // Keep legacy `price` / `corporatePrice` mirrored to the per-adult rates.
+  // Keep legacy `price` / `corporatePrice` mirrored to the per-adult base rates.
   if (body.adultPrice !== undefined) {
     body.adultPrice = Number(body.adultPrice);
     body.price = body.adultPrice;
   }
   if (body.childPrice !== undefined) body.childPrice = Number(body.childPrice);
+  if (body.adultServiceFee !== undefined) body.adultServiceFee = Number(body.adultServiceFee || 0);
+  if (body.childServiceFee !== undefined) body.childServiceFee = Number(body.childServiceFee || 0);
   if (body.corporateAdultPrice !== undefined) {
-    body.corporateAdultPrice = body.corporateAdultPrice === '' ? undefined : Number(body.corporateAdultPrice);
+    body.corporateAdultPrice = optNum(body.corporateAdultPrice);
     body.corporatePrice = body.corporateAdultPrice;
   }
-  if (body.corporateChildPrice !== undefined) {
-    body.corporateChildPrice = body.corporateChildPrice === '' ? undefined : Number(body.corporateChildPrice);
-  }
+  if (body.corporateChildPrice !== undefined) body.corporateChildPrice = optNum(body.corporateChildPrice);
+  if (body.corporateAdultServiceFee !== undefined) body.corporateAdultServiceFee = optNum(body.corporateAdultServiceFee);
+  if (body.corporateChildServiceFee !== undefined) body.corporateChildServiceFee = optNum(body.corporateChildServiceFee);
   const visaType = await VisaType.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true })
     .populate('country', 'name flag');
   if (!visaType) { sendError(res, 'Visa type not found', 404); return; }
@@ -65,9 +76,10 @@ export const updateVisaType = async (req: AdminRequest, res: Response): Promise<
 };
 
 export const deleteVisaType = async (req: AdminRequest, res: Response): Promise<void> => {
-  const visaType = await VisaType.findByIdAndDelete(req.params.id);
+  const visaType = await VisaType.findById(req.params.id);
   if (!visaType) { sendError(res, 'Visa type not found', 404); return; }
-  sendSuccess(res, null, 'Visa type deleted');
+  await moveToTrash('visaType', visaType);
+  sendSuccess(res, null, 'Visa type moved to trash');
 };
 
 export const updateCorporatePrice = async (req: AdminRequest, res: Response): Promise<void> => {

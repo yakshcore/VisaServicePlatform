@@ -8,6 +8,7 @@ import * as leads from '../controllers/admin/contactLeads.controller';
 import * as notifications from '../controllers/admin/notifications.controller';
 import * as users from '../controllers/admin/users.controller';
 import * as formPresets from '../controllers/admin/formPresets.controller';
+import * as trash from '../controllers/admin/trash.controller';
 
 const router = Router();
 router.use(adminProtect);
@@ -30,6 +31,12 @@ router.patch('/visa-types/:id/corporate-price', visaTypes.updateCorporatePrice);
 router.route('/form-presets').get(formPresets.getFormPresets).post(formPresets.createFormPreset);
 router.route('/form-presets/:id').put(formPresets.updateFormPreset).delete(formPresets.deleteFormPreset);
 
+// Trash
+router.get('/trash', trash.getTrash);
+router.delete('/trash', trash.emptyTrash);
+router.put('/trash/:id/restore', trash.restoreTrashItem);
+router.delete('/trash/:id', trash.deleteTrashItem);
+
 // Applications
 router.get('/applications', apps.getApplications);
 router.get('/applications/:id', apps.getApplication);
@@ -39,6 +46,7 @@ router.put('/applications/:id/approve-documents', apps.approveAllDocuments);
 router.post('/applications/:id/visa-file', upload.single('file'), apps.uploadVisaFile);
 router.put('/applications/:id/manual-payment', apps.manualPaymentOverride);
 router.get('/applications/:id/documents/zip', apps.downloadApplicationDocumentsZip);
+router.delete('/applications/:id', apps.deleteApplication);
 
 // Payments
 router.get('/payments', apps.getAdminPayments);

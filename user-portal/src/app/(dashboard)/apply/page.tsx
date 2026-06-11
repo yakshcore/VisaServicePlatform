@@ -14,13 +14,13 @@ import { formatCurrency } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import type { Country, VisaType, FormField, DocumentRequirement, VaultDocument } from '@/types';
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4;
 type DocSource =
   | { type: 'vault'; vaultDocId: string; label: string; url: string }
   | { type: 'file'; file: File };
 type Traveler = { key: string; label: string; type: 'adult' | 'child' };
 
-const STEPS = ['Country', 'Visa Type', 'Application Form', 'Documents', 'Review & Pay'];
+const STEPS = ['Country', 'Visa Type', 'Applicant Details', 'Review & Pay'];
 const DRAFT_KEY = 'visa_app_draft';
 const ACCEPTED = '.jpg,.jpeg,.png,.pdf,.doc,.docx';
 
@@ -62,24 +62,21 @@ const buildTravelers = (adults: number, children: number): Traveler[] => {
   return list;
 };
 
+// Fields a given traveler should fill: adults skip child-only fields; children see everything.
+const fieldsForTraveler = (fields: FormField[], tr: Traveler) =>
+  tr.type === 'child' ? fields : fields.filter((f) => !f.childOnly);
+
 /* ── Counter control ── */
 function Counter({ value, onChange, min }: { value: number; onChange: (v: number) => void; min: number }) {
   return (
     <div className="flex items-center gap-3">
-      <button
-        type="button"
-        onClick={() => onChange(Math.max(min, value - 1))}
-        disabled={value <= min}
-        className="w-8 h-8 rounded-full border-2 border-slate-200 flex items-center justify-center text-slate-500 hover:border-blue-400 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
+      <button type="button" onClick={() => onChange(Math.max(min, value - 1))} disabled={value <= min}
+        className="w-8 h-8 rounded-full border-2 border-slate-200 flex items-center justify-center text-slate-500 hover:border-blue-400 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
         <Minus className="w-4 h-4" />
       </button>
       <span className="w-5 text-center text-base font-bold text-slate-900 tabular-nums">{value}</span>
-      <button
-        type="button"
-        onClick={() => onChange(value + 1)}
-        className="w-8 h-8 rounded-full border-2 border-slate-200 flex items-center justify-center text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
-      >
+      <button type="button" onClick={() => onChange(value + 1)}
+        className="w-8 h-8 rounded-full border-2 border-slate-200 flex items-center justify-center text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors">
         <Plus className="w-4 h-4" />
       </button>
     </div>
@@ -134,7 +131,6 @@ function TravelPlanModal({
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Travelers */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="rounded-xl border border-slate-200 p-3 flex items-center justify-between">
               <div>
@@ -152,12 +148,10 @@ function TravelPlanModal({
             </div>
           </div>
 
-          {/* Info banner */}
           <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-2.5">
             <p className="text-xs font-medium text-amber-700 text-center">Selected dates will be reflected on your visa, so please choose them carefully.</p>
           </div>
 
-          {/* Calendar */}
           <div className="rounded-xl border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-3">
               <button onClick={prevMonth} disabled={!canGoPrev} className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed">
@@ -178,17 +172,10 @@ function TravelPlanModal({
                 const disabled = !inMonth || past;
                 const isSel = selected && sameDay(d, selected);
                 return (
-                  <button
-                    key={i}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => setSelected(new Date(d))}
+                  <button key={i} type="button" disabled={disabled} onClick={() => setSelected(new Date(d))}
                     className={`mx-auto w-9 h-9 rounded-full text-sm flex items-center justify-center transition-colors ${
-                      isSel ? 'bg-blue-600 text-white font-bold shadow'
-                      : disabled ? 'text-slate-300 cursor-not-allowed'
-                      : 'text-slate-700 hover:bg-blue-50'
-                    }`}
-                  >
+                      isSel ? 'bg-blue-600 text-white font-bold shadow' : disabled ? 'text-slate-300 cursor-not-allowed' : 'text-slate-700 hover:bg-blue-50'
+                    }`}>
                     {d.getDate()}
                   </button>
                 );
@@ -196,12 +183,9 @@ function TravelPlanModal({
             </div>
           </div>
 
-          <button
-            onClick={() => selected && onConfirm({ date: fmtDate(selected), adults, children })}
-            disabled={!selected}
+          <button onClick={() => selected && onConfirm({ date: fmtDate(selected), adults, children })} disabled={!selected}
             className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            style={selected ? { background: 'linear-gradient(135deg,#1e3a8a,#2563eb)', color: 'white', boxShadow: '0 4px 15px rgba(37,99,235,0.35)' } : { background: '#f1f5f9', color: '#94a3b8' }}
-          >
+            style={selected ? { background: 'linear-gradient(135deg,#1e3a8a,#2563eb)', color: 'white', boxShadow: '0 4px 15px rgba(37,99,235,0.35)' } : { background: '#f1f5f9', color: '#94a3b8' }}>
             Continue
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -211,34 +195,24 @@ function TravelPlanModal({
   );
 }
 
-/* ── Visa Overview Modal (visa info + document requirements + price confirmation) ── */
+/* ── Visa Overview Modal ── */
 function VisaOverviewModal({
-  country,
-  visa,
-  isCorporate,
-  adults,
-  children,
-  onClose,
-  onContinue,
+  country, visa, isCorporate, adultRate, childRate, onClose, onContinue,
 }: {
   country: Country;
   visa: VisaType;
   isCorporate: boolean;
-  adults: number;
-  children: number;
+  adultRate: number;
+  childRate: number;
   onClose: () => void;
   onContinue: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  const adultRate = isCorporate && visa.corporateAdultPrice ? visa.corporateAdultPrice : (visa.adultPrice || visa.price);
-  const childRate = isCorporate && visa.corporateChildPrice != null ? visa.corporateChildPrice : (visa.childPrice || 0);
-
   const requiredDocs = visa.documentRequirements.filter((r) => r.required);
   const optionalDocs = visa.documentRequirements.filter((r) => !r.required);
 
-  // Copy full visa details — info, form fields, and documents.
   const fullText = (() => {
     const lines: string[] = [];
     lines.push(`${visa.name} — ${country.name}`);
@@ -257,15 +231,13 @@ function VisaOverviewModal({
       lines.push('');
       lines.push('APPLICATION FORM FIELDS');
       [...visa.formFields].sort((a, b) => a.order - b.order).forEach((f) => {
-        lines.push(`- ${f.label}${f.required ? ' (required)' : ''}${f.type !== 'text' ? ` [${f.type}]` : ''}`);
+        lines.push(`- ${f.label}${f.required ? ' (required)' : ''}${f.childOnly ? ' [children only]' : ''}${f.type !== 'text' ? ` [${f.type}]` : ''}`);
       });
     }
     if (visa.documentRequirements?.length) {
       lines.push('');
       lines.push('DOCUMENTS');
-      visa.documentRequirements.forEach((r) => {
-        lines.push(`- ${r.name}${r.required ? ' (required)' : ' (optional)'}`);
-      });
+      visa.documentRequirements.forEach((r) => lines.push(`- ${r.name}${r.required ? ' (required)' : ' (optional)'}`));
     }
     return lines.join('\n');
   })();
@@ -299,10 +271,8 @@ function VisaOverviewModal({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-0 sm:px-4">
       <div onClick={handleClose} className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300" style={{ opacity: visible ? 1 : 0 }} />
 
-      <div
-        className="relative w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 flex flex-col overflow-hidden max-h-[92dvh] sm:max-h-[88vh] transition-all duration-300 ease-out"
-        style={{ transform: visible ? 'translateY(0) scale(1)' : 'translateY(40px) scale(0.97)', opacity: visible ? 1 : 0 }}
-      >
+      <div className="relative w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl z-10 flex flex-col overflow-hidden max-h-[92dvh] sm:max-h-[88vh] transition-all duration-300 ease-out"
+        style={{ transform: visible ? 'translateY(0) scale(1)' : 'translateY(40px) scale(0.97)', opacity: visible ? 1 : 0 }}>
         <div className="flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0">
           <div className="w-10 h-1 bg-slate-200 rounded-full" />
         </div>
@@ -445,7 +415,7 @@ function VisaOverviewModal({
   );
 }
 
-/* ── Visa selection card (green, per design) ── */
+/* ── Visa selection card (green) ── */
 function VisaCard({ visa, selected, priceLabel, onClick }: { visa: VisaType; selected: boolean; priceLabel: string; onClick: () => void }) {
   const rows: { icon: React.ReactNode; label: string; value: string }[] = [
     { icon: <Ticket className="w-4 h-4" />, label: 'Visa Types', value: visa.visaSubType === 'e-visa' ? 'eVisa' : 'Sticker' },
@@ -455,17 +425,12 @@ function VisaCard({ visa, selected, priceLabel, onClick }: { visa: VisaType; sel
   if (visa.processingTime) rows.push({ icon: <Clock className="w-4 h-4" />, label: 'Processing time', value: visa.processingTime });
 
   return (
-    <button
-      onClick={onClick}
-      className={`w-full rounded-2xl overflow-hidden border-2 text-left transition-all ${selected ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-transparent hover:shadow-md'}`}
-    >
-      {/* Green header */}
+    <button onClick={onClick} className={`w-full rounded-2xl overflow-hidden border-2 text-left transition-all ${selected ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-transparent hover:shadow-md'}`}>
       <div className="px-5 py-4 relative" style={{ background: 'linear-gradient(135deg,#0f9d6b 0%,#10b981 100%)' }}>
         <Plane className="w-5 h-5 text-white/90 mb-1.5" />
         <p className="text-white font-bold text-base leading-tight">{visa.name}</p>
         {visa.entry?.[0] && <p className="text-white/80 text-xs mt-0.5 capitalize">{visa.entry[0]}</p>}
       </div>
-      {/* Detail rows */}
       <div className="bg-white divide-y divide-slate-100">
         {rows.map((r) => (
           <div key={r.label} className="flex items-center justify-between px-5 py-2.5">
@@ -487,8 +452,20 @@ export default function ApplyPage() {
   const { user } = useAuthStore();
   const isCorporate = user?.accountType === 'corporate';
 
-  const adultRate = (v: VisaType) => (isCorporate && v.corporateAdultPrice ? v.corporateAdultPrice : (v.adultPrice || v.price));
-  const childRate = (v: VisaType) => (isCorporate && v.corporateChildPrice != null ? v.corporateChildPrice : (v.childPrice || 0));
+  // Per-traveler rates = base price + service fee (corporate-aware, mirrors the backend).
+  const rateParts = (v: VisaType) => {
+    const useCorpAdult = isCorporate && (v.corporateAdultPrice != null || v.corporateAdultServiceFee != null);
+    const useCorpChild = isCorporate && (v.corporateChildPrice != null || v.corporateChildServiceFee != null);
+    return {
+      adultBase: useCorpAdult && v.corporateAdultPrice != null ? v.corporateAdultPrice : (v.adultPrice || v.price),
+      adultFee: useCorpAdult && v.corporateAdultServiceFee != null ? v.corporateAdultServiceFee : (v.adultServiceFee || 0),
+      childBase: useCorpChild && v.corporateChildPrice != null ? v.corporateChildPrice : (v.childPrice || 0),
+      childFee: useCorpChild && v.corporateChildServiceFee != null ? v.corporateChildServiceFee : (v.childServiceFee || 0),
+      corp: useCorpAdult || useCorpChild,
+    };
+  };
+  const adultRate = (v: VisaType) => { const r = rateParts(v); return r.adultBase + r.adultFee; };
+  const childRate = (v: VisaType) => { const r = rateParts(v); return r.childBase + r.childFee; };
 
   const [step, setStep] = useState<Step>(1);
   const [countries, setCountries] = useState<Country[]>([]);
@@ -506,8 +483,8 @@ export default function ApplyPage() {
   const [travelDate, setTravelDate] = useState('');
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
+  const [activeTraveler, setActiveTraveler] = useState(0);
 
-  // Modal visibility
   const [showTravelModal, setShowTravelModal] = useState(false);
   const [pendingCountry, setPendingCountry] = useState<Country | null>(null);
   const [showVisaOverview, setShowVisaOverview] = useState(false);
@@ -544,6 +521,11 @@ export default function ApplyPage() {
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
   }, [draftRestored, step, selectedCountry, selectedVisa, formData, visaTypes, travelDate, adults, children]);
 
+  // Keep the active tab in range when traveller counts change.
+  useEffect(() => {
+    if (activeTraveler > travelers.length - 1) setActiveTraveler(0);
+  }, [travelers.length, activeTraveler]);
+
   const startOver = () => {
     localStorage.removeItem(DRAFT_KEY);
     setStep(1);
@@ -556,9 +538,9 @@ export default function ApplyPage() {
     setTravelDate('');
     setAdults(1);
     setChildren(0);
+    setActiveTraveler(0);
   };
 
-  // Country click → travel plan modal
   const handleCountrySelect = (country: Country) => {
     setPendingCountry(country);
     setShowTravelModal(true);
@@ -568,6 +550,7 @@ export default function ApplyPage() {
     setTravelDate(data.date);
     setAdults(data.adults);
     setChildren(data.children);
+    setActiveTraveler(0);
     setShowTravelModal(false);
     if (!pendingCountry) return;
     const country = pendingCountry;
@@ -585,30 +568,26 @@ export default function ApplyPage() {
     setStep(2);
   };
 
-  const pickFile = (requirementName: string) => {
+  // ── Document helpers (keyed per traveler) ──
+  const docKey = (tr: Traveler, reqName: string, suffix = '') => `${tr.key}::${reqName}${suffix}`;
+
+  const pickFileFor = (storeKey: string) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = ACCEPTED;
     input.onchange = (e: any) => {
       const file = e.target?.files?.[0];
-      if (file) setDocSources((prev) => ({ ...prev, [requirementName]: { type: 'file', file } }));
+      if (file) setDocSources((prev) => ({ ...prev, [storeKey]: { type: 'file', file } }));
     };
     input.click();
   };
 
-  const clearDocSource = (requirementName: string) => {
-    setDocSources((prev) => {
-      const next = { ...prev };
-      delete next[requirementName];
-      return next;
-    });
+  const clearDocSource = (storeKey: string) => {
+    setDocSources((prev) => { const next = { ...prev }; delete next[storeKey]; return next; });
   };
 
-  const selectVaultDoc = (requirementName: string, vaultDoc: VaultDocument) => {
-    setDocSources((prev) => ({
-      ...prev,
-      [requirementName]: { type: 'vault', vaultDocId: vaultDoc._id, label: vaultDoc.label, url: vaultDoc.url },
-    }));
+  const selectVaultDoc = (storeKey: string, vaultDoc: VaultDocument) => {
+    setDocSources((prev) => ({ ...prev, [storeKey]: { type: 'vault', vaultDocId: vaultDoc._id, label: vaultDoc.label, url: vaultDoc.url } }));
   };
 
   const handleSubmit = async () => {
@@ -616,13 +595,11 @@ export default function ApplyPage() {
     setSubmitting(true);
     try {
       setSubmitStatus('Creating application…');
-      // Build per-traveler responses with readable keys.
       const responses: Record<string, string> = {};
       const sortedFields = [...selectedVisa.formFields].sort((a, b) => a.order - b.order);
       for (const tr of travelers) {
-        for (const f of sortedFields) {
+        for (const f of fieldsForTraveler(sortedFields, tr)) {
           const val = formData[`${tr.key}__${f.fieldName}`];
-          // Mongo Map keys cannot contain dots — sanitize the composed label.
           const key = `${tr.label} — ${f.label || f.fieldName}`.replace(/\./g, ' ');
           if (val && String(val).trim()) responses[key] = String(val);
         }
@@ -634,39 +611,36 @@ export default function ApplyPage() {
 
       const reqs = selectedVisa.documentRequirements;
       let uploadIdx = 0;
+      const doUpload = async (file: File, requirementName: string) => {
+        uploadIdx++;
+        setSubmitStatus(`Uploading documents (${uploadIdx})…`);
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('requirementName', requirementName);
+        await uploadDocument(appId, fd);
+      };
 
-      for (const req of reqs) {
-        if (isPassportReq(req.name)) {
-          const frontSrc = docSources[`${req.name}__front`];
-          const backSrc  = docSources[`${req.name}__back`];
-          if (frontSrc?.type === 'file') {
-            uploadIdx++;
-            setSubmitStatus(`Uploading documents (${uploadIdx})…`);
-            const fd = new FormData();
-            fd.append('file', frontSrc.file);
-            fd.append('requirementName', `${req.name} (Front)`);
-            await uploadDocument(appId, fd);
-          }
-          if (backSrc?.type === 'file') {
-            uploadIdx++;
-            setSubmitStatus(`Uploading documents (${uploadIdx})…`);
-            const fd = new FormData();
-            fd.append('file', backSrc.file);
-            fd.append('requirementName', `${req.name} (Back)`);
-            await uploadDocument(appId, fd);
-          }
-        } else {
-          const source = docSources[req.name];
-          if (!source) continue;
-          uploadIdx++;
-          setSubmitStatus(`Uploading documents (${uploadIdx})…`);
-          if (source.type === 'vault') {
-            await addDocumentFromVault(appId, { vaultDocId: source.vaultDocId, requirementName: req.name });
+      for (const tr of travelers) {
+        for (const req of reqs) {
+          const label = `${tr.label} - ${req.name}`;
+          if (isPassportReq(req.name)) {
+            const frontSrc = docSources[docKey(tr, req.name, '__front')];
+            const backSrc = docSources[docKey(tr, req.name, '__back')];
+            if (frontSrc?.type === 'file') await doUpload(frontSrc.file, `${label} (Front)`);
+            if (backSrc?.type === 'file') await doUpload(backSrc.file, `${label} (Back)`);
           } else {
-            const fd = new FormData();
-            fd.append('file', source.file);
-            fd.append('requirementName', req.name);
-            await uploadDocument(appId, fd);
+            const source = docSources[docKey(tr, req.name)];
+            if (!source) continue;
+            uploadIdx++;
+            setSubmitStatus(`Uploading documents (${uploadIdx})…`);
+            if (source.type === 'vault') {
+              await addDocumentFromVault(appId, { vaultDocId: source.vaultDocId, requirementName: label });
+            } else {
+              const fd = new FormData();
+              fd.append('file', source.file);
+              fd.append('requirementName', label);
+              await uploadDocument(appId, fd);
+            }
           }
         }
       }
@@ -702,39 +676,25 @@ export default function ApplyPage() {
     }
   };
 
-  const goNext = () => {
-    if (step === 3 && selectedVisa?.documentRequirements.length === 0) {
-      setStep(5);
-    } else {
-      setStep((s) => Math.min(s + 1, 5) as Step);
-    }
-  };
+  const goNext = () => setStep((s) => Math.min(s + 1, 4) as Step);
+  const goBack = () => setStep((s) => Math.max(s - 1, 1) as Step);
 
-  const goBack = () => {
-    if (step === 5 && selectedVisa?.documentRequirements.length === 0) {
-      setStep(3);
-    } else {
-      setStep((s) => Math.max(s - 1, 1) as Step);
-    }
+  const sortedFields = selectedVisa ? [...selectedVisa.formFields].sort((a, b) => a.order - b.order) : [];
+  const requirements: DocumentRequirement[] = selectedVisa?.documentRequirements || [];
+
+  const travelerComplete = (tr: Traveler) => {
+    const fieldsOk = fieldsForTraveler(sortedFields, tr).filter((f) => f.required).every((f) => !!formData[`${tr.key}__${f.fieldName}`]?.trim());
+    const docsOk = requirements.filter((r) => r.required).every((r) => {
+      if (isPassportReq(r.name)) return !!docSources[docKey(tr, r.name, '__front')] && !!docSources[docKey(tr, r.name, '__back')];
+      return !!docSources[docKey(tr, r.name)];
+    });
+    return fieldsOk && docsOk;
   };
 
   const canProceed = () => {
     if (step === 1) return !!selectedCountry;
     if (step === 2) return !!selectedVisa && !loading;
-    if (step === 3 && selectedVisa) {
-      const reqFields = selectedVisa.formFields.filter((f) => f.required);
-      return travelers.every((tr) => reqFields.every((f) => !!formData[`${tr.key}__${f.fieldName}`]?.trim()));
-    }
-    if (step === 4 && selectedVisa) {
-      return selectedVisa.documentRequirements
-        .filter((r) => r.required)
-        .every((r) => {
-          if (isPassportReq(r.name)) {
-            return !!docSources[`${r.name}__front`] && !!docSources[`${r.name}__back`];
-          }
-          return !!docSources[r.name];
-        });
-    }
+    if (step === 3) return travelers.every(travelerComplete);
     return true;
   };
 
@@ -743,8 +703,7 @@ export default function ApplyPage() {
     const common = {
       id: key,
       value: formData[key] || '',
-      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-        setFormData({ ...formData, [key]: e.target.value }),
+      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setFormData({ ...formData, [key]: e.target.value }),
     };
 
     if (field.type === 'select') {
@@ -758,18 +717,14 @@ export default function ApplyPage() {
       );
     }
     if (field.type === 'textarea') {
-      return (
-        <textarea {...common} rows={3} placeholder={field.placeholder}
-          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-      );
+      return <textarea {...common} rows={3} placeholder={field.placeholder} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />;
     }
     if (field.type === 'radio' && field.options.length > 0) {
       return (
         <div className="flex flex-wrap gap-4 mt-1">
           {field.options.map((o) => (
             <label key={o} className="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name={key} value={o} checked={formData[key] === o}
-                onChange={() => setFormData({ ...formData, [key]: o })} className="text-blue-600 focus:ring-blue-500" />
+              <input type="radio" name={key} value={o} checked={formData[key] === o} onChange={() => setFormData({ ...formData, [key]: o })} className="text-blue-600 focus:ring-blue-500" />
               <span className="text-sm text-slate-700">{o}</span>
             </label>
           ))}
@@ -780,20 +735,14 @@ export default function ApplyPage() {
       return (
         <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50">
           <div className="flex-1 min-w-0">
-            {formData[key]
-              ? <span className="text-sm text-green-700 font-medium truncate">✓ {formData[key]}</span>
-              : <span className="text-sm text-slate-400">{field.placeholder || 'No file selected'}</span>}
+            {formData[key] ? <span className="text-sm text-green-700 font-medium truncate">✓ {formData[key]}</span> : <span className="text-sm text-slate-400">{field.placeholder || 'No file selected'}</span>}
           </div>
-          <button type="button"
-            className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors flex-shrink-0"
+          <button type="button" className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors flex-shrink-0"
             onClick={() => {
               const input = document.createElement('input');
               input.type = 'file';
               input.accept = ACCEPTED;
-              input.onchange = (e: any) => {
-                const file = e.target?.files?.[0];
-                if (file) setFormData({ ...formData, [key]: file.name });
-              };
+              input.onchange = (e: any) => { const file = e.target?.files?.[0]; if (file) setFormData({ ...formData, [key]: file.name }); };
               input.click();
             }}>
             <Upload className="w-3.5 h-3.5" /> Browse
@@ -804,18 +753,87 @@ export default function ApplyPage() {
     return <Input {...common} type={field.type} placeholder={field.placeholder} />;
   };
 
-  const requirements: DocumentRequirement[] = selectedVisa?.documentRequirements || [];
-  const requiredMissing = requirements.filter((r) => {
-    if (!r.required) return false;
-    if (isPassportReq(r.name)) return !docSources[`${r.name}__front`] || !docSources[`${r.name}__back`];
-    return !docSources[r.name];
-  });
-  const readyCount = requirements.filter((r) => {
-    if (isPassportReq(r.name)) return !!docSources[`${r.name}__front`] && !!docSources[`${r.name}__back`];
-    return !!docSources[r.name];
-  }).length;
+  // Per-traveler document requirement card
+  const renderDocCard = (tr: Traveler, req: DocumentRequirement) => {
+    if (isPassportReq(req.name)) {
+      const frontSrc = docSources[docKey(tr, req.name, '__front')];
+      const backSrc = docSources[docKey(tr, req.name, '__back')];
+      return (
+        <PassportUploadCard
+          key={req._id || req.name}
+          requirementName={`${tr.label} — ${req.name}`}
+          frontFile={frontSrc?.type === 'file' ? frontSrc.file : null}
+          backFile={backSrc?.type === 'file' ? backSrc.file : null}
+          onFrontChange={(file) => {
+            if (file) setDocSources((p) => ({ ...p, [docKey(tr, req.name, '__front')]: { type: 'file', file } }));
+            else clearDocSource(docKey(tr, req.name, '__front'));
+          }}
+          onBackChange={(file) => {
+            if (file) setDocSources((p) => ({ ...p, [docKey(tr, req.name, '__back')]: { type: 'file', file } }));
+            else clearDocSource(docKey(tr, req.name, '__back'));
+          }}
+        />
+      );
+    }
 
-  const sortedFields = selectedVisa ? [...selectedVisa.formFields].sort((a, b) => a.order - b.order) : [];
+    const sk = docKey(tr, req.name);
+    const source = docSources[sk];
+    const vaultType = getVaultType(req.name);
+    const vaultMatches = vaultType ? vaultDocs.filter((v) => v.type === vaultType) : [];
+
+    return (
+      <div key={req._id || req.name} className={`rounded-xl border-2 p-4 transition-all ${source ? 'border-green-200 bg-green-50' : req.required ? 'border-slate-200 bg-white hover:border-blue-200' : 'border-dashed border-slate-200 bg-slate-50/50'}`}>
+        <div className="flex items-start gap-3 mb-3">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${source ? 'bg-green-100' : 'bg-slate-100'}`}>
+            {source ? <Check className="w-4 h-4 text-green-600" /> : <FileText className="w-4 h-4 text-slate-400" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-slate-900">
+              {req.name}
+              {req.required && <span className="text-red-500 ml-1">*</span>}
+              {!req.required && <span className="text-slate-400 ml-1.5 text-xs font-normal">(optional)</span>}
+            </p>
+            {req.description && <p className="text-xs text-slate-400 mt-0.5">{req.description}</p>}
+          </div>
+        </div>
+
+        {source && (
+          <div className="flex items-center gap-2 mb-3 ml-11">
+            {source.type === 'vault' ? (
+              <span className="text-xs text-green-700 font-medium flex items-center gap-1"><Vault className="w-3 h-3" /> From vault: {source.label}</span>
+            ) : (
+              <span className="text-xs text-green-700 font-medium truncate max-w-[200px]">{source.file.name}<span className="text-slate-400 ml-1">· {formatBytes(source.file.size)}</span></span>
+            )}
+            <button onClick={() => clearDocSource(sk)} className="p-0.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        )}
+
+        {vaultMatches.length > 0 && (
+          <div className="flex flex-wrap gap-2 ml-11 mb-2">
+            {vaultMatches.map((vd) => {
+              const isSelected = source?.type === 'vault' && source.vaultDocId === vd._id;
+              return (
+                <button key={vd._id} onClick={() => isSelected ? clearDocSource(sk) : selectVaultDoc(sk, vd)}
+                  className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${isSelected ? 'bg-green-100 border-green-300 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50'}`}>
+                  <Vault className="w-3 h-3" />
+                  {isSelected ? `Selected: ${vd.label} ✓` : `Use from vault: ${vd.label}`}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="ml-11">
+          <button onClick={() => pickFileFor(sk)} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors">
+            <Upload className="w-3.5 h-3.5" />
+            {source?.type === 'file' ? 'Replace file' : 'Upload new file'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const activeTr = travelers[Math.min(activeTraveler, travelers.length - 1)] || travelers[0];
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -833,8 +851,8 @@ export default function ApplyPage() {
           country={selectedCountry}
           visa={selectedVisa}
           isCorporate={isCorporate}
-          adults={adults}
-          children={children}
+          adultRate={adultRate(selectedVisa)}
+          childRate={childRate(selectedVisa)}
           onClose={() => setShowVisaOverview(false)}
           onContinue={() => { setShowVisaOverview(false); goNext(); }}
         />
@@ -854,20 +872,15 @@ export default function ApplyPage() {
       <div className="flex items-center mb-8">
         {STEPS.map((label, i) => {
           const n = (i + 1) as Step;
-          if (n === 4 && selectedVisa && requirements.length === 0) return null;
           const done = step > n;
           const active = step === n;
           return (
             <div key={label} className="flex items-center flex-1 min-w-0">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                done ? 'bg-green-500 text-white' : active ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'
-              }`}>
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${done ? 'bg-green-500 text-white' : active ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
                 {done ? <Check className="w-3.5 h-3.5" /> : n}
               </div>
               <span className={`text-xs font-medium hidden sm:block ml-1.5 mr-1 ${active ? 'text-blue-700' : done ? 'text-green-700' : 'text-slate-400'}`}>{label}</span>
-              {i < STEPS.length - 1 && !(n === 4 && selectedVisa && requirements.length === 0) && (
-                <div className={`flex-1 h-0.5 mx-1 ${step > n ? 'bg-green-300' : 'bg-slate-200'}`} />
-              )}
+              {i < STEPS.length - 1 && <div className={`flex-1 h-0.5 mx-1 ${step > n ? 'bg-green-300' : 'bg-slate-200'}`} />}
             </div>
           );
         })}
@@ -884,17 +897,13 @@ export default function ApplyPage() {
               <Input className="pl-9" placeholder="Search countries..." value={countrySearch} onChange={(e) => setCountrySearch(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {countries
-                .filter((c) => c.name.toLowerCase().includes(countrySearch.toLowerCase()))
-                .map((c) => (
-                  <button key={c._id} onClick={() => handleCountrySelect(c)}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                      selectedCountry?._id === c._id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
-                    }`}>
-                    <img src={`https://flagcdn.com/w40/${c.flag}.png`} alt={c.name} className="w-8 h-5 object-cover rounded mb-2" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    <p className="text-sm font-semibold text-slate-900">{c.name}</p>
-                  </button>
-                ))}
+              {countries.filter((c) => c.name.toLowerCase().includes(countrySearch.toLowerCase())).map((c) => (
+                <button key={c._id} onClick={() => handleCountrySelect(c)}
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${selectedCountry?._id === c._id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'}`}>
+                  <img src={`https://flagcdn.com/w40/${c.flag}.png`} alt={c.name} className="w-8 h-5 object-cover rounded mb-2" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  <p className="text-sm font-semibold text-slate-900">{c.name}</p>
+                </button>
+              ))}
               {countries.filter((c) => c.name.toLowerCase().includes(countrySearch.toLowerCase())).length === 0 && (
                 <p className="col-span-3 text-center text-slate-400 py-6 text-sm">No countries match "{countrySearch}".</p>
               )}
@@ -931,186 +940,99 @@ export default function ApplyPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {visaTypes.map((v) => (
-                  <VisaCard
-                    key={v._id}
-                    visa={v}
-                    selected={selectedVisa?._id === v._id}
-                    priceLabel={`${formatCurrency(adultRate(v))} / adult`}
-                    onClick={() => { setSelectedVisa(v); setDocSources({}); setShowVisaOverview(true); }}
-                  />
+                  <VisaCard key={v._id} visa={v} selected={selectedVisa?._id === v._id} priceLabel={`${formatCurrency(adultRate(v))} / adult`}
+                    onClick={() => { setSelectedVisa(v); setDocSources({}); setShowVisaOverview(true); }} />
                 ))}
               </div>
             )}
           </div>
         )}
 
-        {/* ── Step 3: Application Form (per traveler) ── */}
+        {/* ── Step 3: Applicant Details (tabbed per traveler, with documents) ── */}
         {step === 3 && selectedVisa && (
           <div>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <h2 className="text-lg font-semibold text-slate-900">Application Details</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Applicant Details</h2>
               <span className="flex items-center gap-1 text-xs text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full font-medium">
                 <Users className="w-3 h-3" /> {travelers.length} traveller{travelers.length > 1 ? 's' : ''}
               </span>
             </div>
 
-            {sortedFields.length === 0 ? (
-              <div className="text-center py-6 text-slate-400">
-                <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">No additional form fields required for this visa type.</p>
-              </div>
-            ) : (
+            {/* Traveller tabs */}
+            <div className="flex flex-wrap gap-2 mb-5 border-b border-slate-100 pb-3">
+              {travelers.map((tr, idx) => {
+                const isActive = idx === Math.min(activeTraveler, travelers.length - 1);
+                const complete = travelerComplete(tr);
+                return (
+                  <button key={tr.key} onClick={() => setActiveTraveler(idx)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${
+                      isActive ? (tr.type === 'adult' ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-emerald-500 bg-emerald-50 text-emerald-800')
+                      : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                    }`}>
+                    {complete ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Users className="w-3.5 h-3.5" />}
+                    {tr.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeTr && (
               <div className="space-y-6">
-                {travelers.map((tr) => (
-                  <div key={tr.key} className="rounded-xl border border-slate-200 overflow-hidden">
-                    <div className={`px-4 py-2.5 flex items-center gap-2 ${tr.type === 'adult' ? 'bg-blue-50' : 'bg-emerald-50'}`}>
-                      <Users className={`w-4 h-4 ${tr.type === 'adult' ? 'text-blue-500' : 'text-emerald-500'}`} />
-                      <p className={`text-sm font-bold ${tr.type === 'adult' ? 'text-blue-800' : 'text-emerald-800'}`}>{tr.label}</p>
-                    </div>
-                    <div className="p-4 space-y-4">
-                      {sortedFields.map((field) => (
+                {/* Details */}
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">{activeTr.label} · Details</p>
+                  {fieldsForTraveler(sortedFields, activeTr).length === 0 ? (
+                    <p className="text-sm text-slate-400">No form fields required for this traveller.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {fieldsForTraveler(sortedFields, activeTr).map((field) => (
                         <div key={field._id || field.fieldName}>
-                          <Label htmlFor={`${tr.key}__${field.fieldName}`}>
+                          <Label htmlFor={`${activeTr.key}__${field.fieldName}`}>
                             {field.label}
                             {field.required && <span className="text-red-500 ml-1">*</span>}
+                            {field.childOnly && <span className="ml-1.5 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Child</span>}
                           </Label>
-                          <div className="mt-1">{renderField(field, tr.key)}</div>
+                          <div className="mt-1">{renderField(field, activeTr.key)}</div>
                         </div>
                       ))}
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                  )}
+                </div>
 
-        {/* ── Step 4: Documents ── */}
-        {step === 4 && selectedVisa && (
-          <div>
-            <div className="flex items-start justify-between mb-5">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">Upload Documents</h2>
-                <p className="text-slate-500 text-sm mt-0.5">Upload the required documents for your {selectedVisa.name} application.</p>
-              </div>
-              <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full font-medium flex-shrink-0">{readyCount}/{requirements.length} ready</span>
-            </div>
-
-            {requirements.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
-                <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">No documents required for this visa type.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {requirements.map((req) => {
-                  if (isPassportReq(req.name)) {
-                    const frontSrc = docSources[`${req.name}__front`];
-                    const backSrc  = docSources[`${req.name}__back`];
-                    return (
-                      <PassportUploadCard
-                        key={req._id || req.name}
-                        requirementName={req.name}
-                        frontFile={frontSrc?.type === 'file' ? frontSrc.file : null}
-                        backFile={backSrc?.type === 'file' ? backSrc.file : null}
-                        onFrontChange={(file) => {
-                          if (file) setDocSources((p) => ({ ...p, [`${req.name}__front`]: { type: 'file', file } }));
-                          else setDocSources((p) => { const n = { ...p }; delete n[`${req.name}__front`]; return n; });
-                        }}
-                        onBackChange={(file) => {
-                          if (file) setDocSources((p) => ({ ...p, [`${req.name}__back`]: { type: 'file', file } }));
-                          else setDocSources((p) => { const n = { ...p }; delete n[`${req.name}__back`]; return n; });
-                        }}
-                      />
-                    );
-                  }
-
-                  const source = docSources[req.name];
-                  const vaultType = getVaultType(req.name);
-                  const vaultMatches = vaultType ? vaultDocs.filter((v) => v.type === vaultType) : [];
-                  return (
-                    <div key={req._id || req.name}
-                      className={`rounded-xl border-2 p-4 transition-all ${
-                        source ? 'border-green-200 bg-green-50' : req.required ? 'border-slate-200 bg-white hover:border-blue-200' : 'border-dashed border-slate-200 bg-slate-50/50'
-                      }`}>
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${source ? 'bg-green-100' : 'bg-slate-100'}`}>
-                          {source ? <Check className="w-4 h-4 text-green-600" /> : <FileText className="w-4 h-4 text-slate-400" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-900">
-                            {req.name}
-                            {req.required && <span className="text-red-500 ml-1">*</span>}
-                            {!req.required && <span className="text-slate-400 ml-1.5 text-xs font-normal">(optional)</span>}
-                          </p>
-                          {req.description && <p className="text-xs text-slate-400 mt-0.5">{req.description}</p>}
-                        </div>
-                      </div>
-
-                      {source && (
-                        <div className="flex items-center gap-2 mb-3 ml-11">
-                          {source.type === 'vault' ? (
-                            <span className="text-xs text-green-700 font-medium flex items-center gap-1"><Vault className="w-3 h-3" /> From vault: {source.label}</span>
-                          ) : (
-                            <span className="text-xs text-green-700 font-medium truncate max-w-[200px]">
-                              {source.file.name}<span className="text-slate-400 ml-1">· {formatBytes(source.file.size)}</span>
-                            </span>
-                          )}
-                          <button onClick={() => clearDocSource(req.name)} className="p-0.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"><X className="w-3.5 h-3.5" /></button>
-                        </div>
-                      )}
-
-                      {vaultMatches.length > 0 && (
-                        <div className="flex flex-wrap gap-2 ml-11 mb-2">
-                          {vaultMatches.map((vd) => {
-                            const isSelected = source?.type === 'vault' && source.vaultDocId === vd._id;
-                            return (
-                              <button key={vd._id}
-                                onClick={() => isSelected ? clearDocSource(req.name) : selectVaultDoc(req.name, vd)}
-                                className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
-                                  isSelected ? 'bg-green-100 border-green-300 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50'
-                                }`}>
-                                <Vault className="w-3 h-3" />
-                                {isSelected ? `Selected: ${vd.label} ✓` : `Use from vault: ${vd.label}`}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      <div className="ml-11">
-                        <button onClick={() => pickFile(req.name)}
-                          className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors">
-                          <Upload className="w-3.5 h-3.5" />
-                          {source?.type === 'file' ? 'Replace file' : 'Upload new file'}
-                        </button>
-                      </div>
+                {/* Documents */}
+                {requirements.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">{activeTr.label} · Documents</p>
+                    <div className="space-y-3">
+                      {requirements.map((req) => renderDocCard(activeTr, req))}
                     </div>
-                  );
-                })}
+                    <p className="text-xs text-slate-400 mt-3">Accepted formats: PDF, JPG, PNG, DOC, DOCX · Max 10 MB per file</p>
+                  </div>
+                )}
+
+                {/* Sequential navigation between travellers */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <button disabled={activeTraveler === 0} onClick={() => setActiveTraveler((i) => Math.max(0, i - 1))}
+                    className="text-sm text-slate-500 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1">
+                    <ChevronLeft className="w-4 h-4" /> Previous traveller
+                  </button>
+                  {activeTraveler < travelers.length - 1 ? (
+                    <button onClick={() => setActiveTraveler((i) => Math.min(travelers.length - 1, i + 1))}
+                      className="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                      Next traveller <ChevronRight className="w-4 h-4" />
+                    </button>
+                  ) : <span className="text-xs text-slate-400">All travellers</span>}
+                </div>
               </div>
             )}
-
-            {requiredMissing.length > 0 && (
-              <div className="mt-4 flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-700">
-                  <span className="font-semibold">Required: </span>
-                  {requiredMissing.map((r) => r.name).join(', ')} must be provided before proceeding.
-                </p>
-              </div>
-            )}
-
-            <p className="text-xs text-slate-400 mt-4">Accepted formats: PDF, JPG, PNG, DOC, DOCX · Max 10 MB per file</p>
           </div>
         )}
 
-        {/* ── Step 5: Review & Pay ── */}
-        {step === 5 && selectedVisa && (
+        {/* ── Step 4: Review & Pay ── */}
+        {step === 4 && selectedVisa && (
           <div>
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Review &amp; Pay</h2>
             <div className="space-y-4">
-              {/* Visa details */}
               <div className="bg-slate-50 rounded-xl p-4">
                 <p className="text-xs text-slate-500 font-semibold mb-3 uppercase tracking-wide">Visa Details</p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1148,106 +1070,101 @@ export default function ApplyPage() {
                 </div>
               </div>
 
-              {/* Per-traveler responses */}
-              {sortedFields.length > 0 && (
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-xs text-slate-500 font-semibold mb-3 uppercase tracking-wide">Traveller Details</p>
-                  <div className="space-y-3">
-                    {travelers.map((tr) => {
-                      const entries = sortedFields
-                        .map((f) => [f.label || f.fieldName, formData[`${tr.key}__${f.fieldName}`]] as const)
-                        .filter(([, v]) => v && String(v).trim());
-                      return (
-                        <div key={tr.key}>
-                          <p className={`text-xs font-bold mb-1 ${tr.type === 'adult' ? 'text-blue-700' : 'text-emerald-700'}`}>{tr.label}</p>
-                          {entries.length === 0 ? (
-                            <p className="text-xs text-slate-400 italic">No details provided</p>
-                          ) : (
-                            <div className="space-y-1 text-sm">
-                              {entries.map(([k, v]) => (
-                                <div key={k} className="flex justify-between gap-4">
-                                  <span className="text-slate-500 shrink-0">{k}</span>
-                                  <span className="font-medium text-slate-900 text-right truncate">{v}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Documents summary */}
-              {requirements.length > 0 && (
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-xs text-slate-500 font-semibold mb-3 uppercase tracking-wide">Documents</p>
-                  <div className="space-y-2">
-                    {requirements.map((req) => {
-                      if (isPassportReq(req.name)) {
-                        const fSrc = docSources[`${req.name}__front`];
-                        const bSrc = docSources[`${req.name}__back`];
-                        return (
-                          <div key={req._id || req.name} className="space-y-1">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-slate-700 flex items-center gap-1"><BookOpen className="w-3.5 h-3.5 text-slate-400" /> {req.name} — Front</span>
-                              {fSrc?.type === 'file' ? <span className="text-green-700 font-medium flex items-center gap-1"><Check className="w-3.5 h-3.5" /> {fSrc.file.name}</span> : <span className="text-slate-400 italic text-xs">Not provided</span>}
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-slate-700 flex items-center gap-1"><BookOpen className="w-3.5 h-3.5 text-slate-400" /> {req.name} — Back</span>
-                              {bSrc?.type === 'file' ? <span className="text-green-700 font-medium flex items-center gap-1"><Check className="w-3.5 h-3.5" /> {bSrc.file.name}</span> : <span className="text-slate-400 italic text-xs">Not provided</span>}
-                            </div>
+              {/* Per-traveller details + documents */}
+              <div className="bg-slate-50 rounded-xl p-4">
+                <p className="text-xs text-slate-500 font-semibold mb-3 uppercase tracking-wide">Traveller Details</p>
+                <div className="space-y-4">
+                  {travelers.map((tr) => {
+                    const entries = fieldsForTraveler(sortedFields, tr)
+                      .map((f) => [f.label || f.fieldName, formData[`${tr.key}__${f.fieldName}`]] as const)
+                      .filter(([, v]) => v && String(v).trim());
+                    return (
+                      <div key={tr.key} className="border-t border-slate-100 first:border-t-0 pt-3 first:pt-0">
+                        <p className={`text-xs font-bold mb-1.5 ${tr.type === 'adult' ? 'text-blue-700' : 'text-emerald-700'}`}>{tr.label}</p>
+                        {entries.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">No details provided</p>
+                        ) : (
+                          <div className="space-y-1 text-sm">
+                            {entries.map(([k, v]) => (
+                              <div key={k} className="flex justify-between gap-4">
+                                <span className="text-slate-500 shrink-0">{k}</span>
+                                <span className="font-medium text-slate-900 text-right truncate">{v}</span>
+                              </div>
+                            ))}
                           </div>
-                        );
-                      }
-                      const source = docSources[req.name];
-                      return (
-                        <div key={req._id || req.name} className="flex items-center justify-between text-sm">
-                          <span className="text-slate-700">{req.name}{req.required && <span className="text-red-400 ml-1">*</span>}</span>
-                          {source ? (
-                            source.type === 'vault' ? (
-                              <span className="text-green-700 font-medium flex items-center gap-1"><Vault className="w-3.5 h-3.5" /> {source.label}</span>
-                            ) : (
-                              <span className="text-green-700 font-medium flex items-center gap-1"><Check className="w-3.5 h-3.5" /> {source.file.name}</span>
-                            )
-                          ) : (
-                            <span className="text-slate-400 italic text-xs">Not provided</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        )}
+                        {requirements.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {requirements.map((req) => {
+                              if (isPassportReq(req.name)) {
+                                const f = docSources[docKey(tr, req.name, '__front')];
+                                const b = docSources[docKey(tr, req.name, '__back')];
+                                const ok = f && b;
+                                return (
+                                  <div key={req._id || req.name} className="flex items-center justify-between text-xs">
+                                    <span className="text-slate-600 flex items-center gap-1"><BookOpen className="w-3 h-3 text-slate-400" /> {req.name} (Front & Back)</span>
+                                    {ok ? <span className="text-green-700 font-medium flex items-center gap-1"><Check className="w-3 h-3" /> Provided</span> : <span className="text-slate-400 italic">Not provided</span>}
+                                  </div>
+                                );
+                              }
+                              const src = docSources[docKey(tr, req.name)];
+                              return (
+                                <div key={req._id || req.name} className="flex items-center justify-between text-xs">
+                                  <span className="text-slate-600">{req.name}{req.required && <span className="text-red-400 ml-1">*</span>}</span>
+                                  {src ? <span className="text-green-700 font-medium flex items-center gap-1">{src.type === 'vault' ? <Vault className="w-3 h-3" /> : <Check className="w-3 h-3" />} {src.type === 'vault' ? src.label : src.file.name}</span> : <span className="text-slate-400 italic">Not provided</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-
-              {/* Pricing breakdown (per traveler) */}
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide mb-3">Payment Summary</p>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">{adults} × Adult {isCorporate && selectedVisa.corporateAdultPrice ? '(Corporate)' : ''} @ {formatCurrency(adultRate(selectedVisa))}</span>
-                    <span className="font-medium text-slate-800">{formatCurrency(adults * adultRate(selectedVisa))}</span>
-                  </div>
-                  {children > 0 && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">{children} × Child {isCorporate && selectedVisa.corporateChildPrice != null ? '(Corporate)' : ''} @ {formatCurrency(childRate(selectedVisa))}</span>
-                      <span className="font-medium text-slate-800">{formatCurrency(children * childRate(selectedVisa))}</span>
-                    </div>
-                  )}
-                  <div className="border-t border-blue-200 pt-2" />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-blue-800">Total</p>
-                      {isCorporate && (selectedVisa.corporateAdultPrice || selectedVisa.corporateChildPrice != null) && (
-                        <span className="text-[10px] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full uppercase tracking-wide">Corporate</span>
-                      )}
-                    </div>
-                    <p className="text-2xl font-bold text-blue-900">{formatCurrency(orderTotal(selectedVisa))}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-end mt-3"><CreditCard className="w-6 h-6 text-blue-400" /></div>
               </div>
+
+              {/* Pricing breakdown with service fees */}
+              {(() => {
+                const r = rateParts(selectedVisa);
+                return (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide mb-3">Payment Summary</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600">{adults} × Adult @ {formatCurrency(r.adultBase)}</span>
+                        <span className="font-medium text-slate-800">{formatCurrency(adults * r.adultBase)}</span>
+                      </div>
+                      {r.adultFee > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500">{adults} × Adult service fee @ {formatCurrency(r.adultFee)}</span>
+                          <span className="text-slate-600">{formatCurrency(adults * r.adultFee)}</span>
+                        </div>
+                      )}
+                      {children > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-600">{children} × Child @ {formatCurrency(r.childBase)}</span>
+                          <span className="font-medium text-slate-800">{formatCurrency(children * r.childBase)}</span>
+                        </div>
+                      )}
+                      {children > 0 && r.childFee > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500">{children} × Child service fee @ {formatCurrency(r.childFee)}</span>
+                          <span className="text-slate-600">{formatCurrency(children * r.childFee)}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-blue-200 pt-2" />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-blue-800">Total</p>
+                          {r.corp && <span className="text-[10px] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full uppercase tracking-wide">Corporate</span>}
+                        </div>
+                        <p className="text-2xl font-bold text-blue-900">{formatCurrency(orderTotal(selectedVisa))}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end mt-3"><CreditCard className="w-6 h-6 text-blue-400" /></div>
+                  </div>
+                );
+              })()}
 
               <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
                 <p className="text-sm text-emerald-700">
@@ -1265,7 +1182,7 @@ export default function ApplyPage() {
           <ChevronLeft className="w-4 h-4 mr-1" /> Back
         </Button>
 
-        {step < 5 ? (
+        {step < 4 ? (
           <Button onClick={goNext} disabled={!canProceed()}>
             Next <ChevronRight className="w-4 h-4 ml-1" />
           </Button>

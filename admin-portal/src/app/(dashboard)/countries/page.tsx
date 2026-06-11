@@ -70,9 +70,9 @@ export default function CountriesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this country?')) return;
+    if (!confirm('Move this country to Trash? You can restore it later from the Trash page.')) return;
     await deleteCountry(id);
-    toast({ title: 'Country deleted' });
+    toast({ title: 'Moved to Trash', description: 'Restore it anytime from the Trash page.' });
     fetchCountries();
   };
 

@@ -18,6 +18,7 @@ const FormFieldSchema = new Schema<IFormField>({
   options: [{ type: String }],
   placeholder: { type: String, default: '' },
   order: { type: Number, default: 0 },
+  childOnly: { type: Boolean, default: false },
 });
 
 const DocumentRequirementSchema = new Schema<IDocumentRequirement>({

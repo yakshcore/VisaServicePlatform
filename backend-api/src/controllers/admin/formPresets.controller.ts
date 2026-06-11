@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AdminRequest } from '../../middleware/adminAuth.middleware';
 import FormPreset from '../../models/FormPreset';
 import { sendSuccess, sendError } from '../../utils/response';
+import { moveToTrash } from '../../utils/trash';
 
 export const getFormPresets = async (_req: AdminRequest, res: Response): Promise<void> => {
   const presets = await FormPreset.find().sort({ updatedAt: -1 });
@@ -27,7 +28,8 @@ export const updateFormPreset = async (req: AdminRequest, res: Response): Promis
 };
 
 export const deleteFormPreset = async (req: AdminRequest, res: Response): Promise<void> => {
-  const preset = await FormPreset.findByIdAndDelete(req.params.id);
+  const preset = await FormPreset.findById(req.params.id);
   if (!preset) { sendError(res, 'Form preset not found', 404); return; }
-  sendSuccess(res, null, 'Form preset deleted');
+  await moveToTrash('formPreset', preset);
+  sendSuccess(res, null, 'Form preset moved to trash');
 };

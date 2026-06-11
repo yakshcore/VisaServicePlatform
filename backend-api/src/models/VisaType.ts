@@ -11,6 +11,7 @@ export interface IFormField {
   options: string[];
   placeholder: string;
   order: number;
+  childOnly: boolean;
 }
 
 export interface IDocumentRequirement {
@@ -37,8 +38,12 @@ export interface IVisaType extends Document {
   // Per-traveler pricing
   adultPrice: number;
   childPrice: number;
+  adultServiceFee: number;
+  childServiceFee: number;
   corporateAdultPrice?: number;
   corporateChildPrice?: number;
+  corporateAdultServiceFee?: number;
+  corporateChildServiceFee?: number;
   processingTime: string;
   validity: string;
   entry: EntryType[];
@@ -60,6 +65,7 @@ const FormFieldSchema = new Schema<IFormField>({
   options: [{ type: String }],
   placeholder: { type: String, default: '' },
   order: { type: Number, default: 0 },
+  childOnly: { type: Boolean, default: false },
 });
 
 const DocumentRequirementSchema = new Schema<IDocumentRequirement>({
@@ -79,8 +85,12 @@ const VisaTypeSchema = new Schema<IVisaType>(
     corporatePrice: { type: Number, min: 0 },
     adultPrice: { type: Number, default: 0, min: 0 },
     childPrice: { type: Number, default: 0, min: 0 },
+    adultServiceFee: { type: Number, default: 0, min: 0 },
+    childServiceFee: { type: Number, default: 0, min: 0 },
     corporateAdultPrice: { type: Number, min: 0 },
     corporateChildPrice: { type: Number, min: 0 },
+    corporateAdultServiceFee: { type: Number, min: 0 },
+    corporateChildServiceFee: { type: Number, min: 0 },
     processingTime: { type: String, required: true, default: '' },
     validity: { type: String, default: '' },
     entry: [{ type: String, enum: ['single', 'multiple', 'double'] }],

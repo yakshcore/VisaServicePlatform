@@ -1,25 +1,27 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, Loader2, Upload, ExternalLink, Download } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, Loader2, Upload, ExternalLink, Download, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
-import { getApplication, reviewDocument, approveAllDocuments, updateStatus, uploadVisaFile, manualPaymentOverride, downloadApplicationDocumentsZip } from '@/lib/api';
+import { getApplication, reviewDocument, approveAllDocuments, updateStatus, uploadVisaFile, manualPaymentOverride, downloadApplicationDocumentsZip, deleteApplication } from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import type { Application, Document, VisaFile } from '@/types';
 import { STATUS_LABELS, ALL_STATUSES } from '@/types';
 
 export default function AdminApplicationDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [application, setApplication] = useState<Application | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [visaFile, setVisaFile] = useState<VisaFile | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [downloadingZip, setDownloadingZip] = useState(false);
+  const [trashing, setTrashing] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
@@ -111,6 +113,19 @@ export default function AdminApplicationDetailPage() {
     }
   };
 
+  const handleTrash = async () => {
+    if (!confirm('Move this application to Trash? You can restore it later from the Trash page.')) return;
+    setTrashing(true);
+    try {
+      await deleteApplication(id);
+      toast({ title: 'Moved to Trash', description: 'Restore it anytime from the Trash page.', variant: 'success' });
+      router.push('/applications');
+    } catch (err: any) {
+      toast({ title: 'Failed to move to trash', description: err.response?.data?.message, variant: 'destructive' });
+      setTrashing(false);
+    }
+  };
+
   if (loading) return <div className="p-6 text-center text-slate-400">Loading...</div>;
   if (!application) return <div className="p-6 text-center text-slate-400">Application not found.</div>;
 
@@ -127,6 +142,10 @@ export default function AdminApplicationDetailPage() {
           <h1 className="text-2xl font-bold text-slate-900">Application Review</h1>
           <p className="text-xs text-slate-400 font-mono">{application.referenceId}</p>
         </div>
+        <Button variant="outline" onClick={handleTrash} disabled={trashing}
+          className="ml-auto text-red-600 border-red-200 hover:bg-red-50">
+          {trashing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Trash2 className="w-4 h-4 mr-2" /> Move to Trash</>}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

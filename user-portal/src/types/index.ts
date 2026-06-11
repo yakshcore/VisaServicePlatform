@@ -47,8 +47,12 @@ export interface VisaType {
   corporatePrice?: number;
   adultPrice: number;
   childPrice: number;
+  adultServiceFee: number;
+  childServiceFee: number;
   corporateAdultPrice?: number;
   corporateChildPrice?: number;
+  corporateAdultServiceFee?: number;
+  corporateChildServiceFee?: number;
   processingTime: string;
   validity?: string;
   entry: EntryType[];
@@ -79,6 +83,7 @@ export interface FormField {
   options: string[];
   placeholder: string;
   order: number;
+  childOnly?: boolean;
 }
 
 export interface DocumentRequirement {

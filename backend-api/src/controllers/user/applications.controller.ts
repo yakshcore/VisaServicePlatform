@@ -62,14 +62,14 @@ export const createApplication = async (req: AuthRequest, res: Response): Promis
   const numAdults = Math.max(1, Number(adults) || 1);
   const numChildren = Math.max(0, Number(children) || 0);
 
-  // Per-traveler pricing. Falls back to legacy single price for visa types created before per-traveler pricing.
-  const adultRate = isCorporate && visaType.corporateAdultPrice
-    ? visaType.corporateAdultPrice
-    : (visaType.adultPrice || visaType.price);
-  const childRate = isCorporate && visaType.corporateChildPrice != null
-    ? visaType.corporateChildPrice
-    : (visaType.childPrice || 0);
-  const paymentAmount = numAdults * adultRate + numChildren * childRate;
+  // Per-traveler pricing = base price + service fee. Falls back to legacy single price for older visa types.
+  const useCorpAdult = isCorporate && (visaType.corporateAdultPrice != null || visaType.corporateAdultServiceFee != null);
+  const useCorpChild = isCorporate && (visaType.corporateChildPrice != null || visaType.corporateChildServiceFee != null);
+  const adultBase = useCorpAdult && visaType.corporateAdultPrice != null ? visaType.corporateAdultPrice : (visaType.adultPrice || visaType.price);
+  const adultFee = useCorpAdult && visaType.corporateAdultServiceFee != null ? visaType.corporateAdultServiceFee : (visaType.adultServiceFee || 0);
+  const childBase = useCorpChild && visaType.corporateChildPrice != null ? visaType.corporateChildPrice : (visaType.childPrice || 0);
+  const childFee = useCorpChild && visaType.corporateChildServiceFee != null ? visaType.corporateChildServiceFee : (visaType.childServiceFee || 0);
+  const paymentAmount = numAdults * (adultBase + adultFee) + numChildren * (childBase + childFee);
 
   const application = await Application.create({
     user: req.user!._id,
